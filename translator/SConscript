@@ -1,0 +1,75 @@
+import os
+from multiprocessing import cpu_count
+from math import floor
+from os import environ
+
+# Make sure that these environment variables exist
+ROSE_HOME = 'ROSE_HOME'
+BOOST_HOME = 'BOOST_HOME'
+
+for var in [ROSE_HOME, BOOST_HOME]:
+	try:
+		environ[var]
+	except KeyError:
+		print ("The environment variable '" + var + "' is needed to compile and link but cannot be found.")
+		Exit(1)
+
+# Libraries and includes needed to compile
+LIB_DIR       = 'lib'
+ROSE_LIB      = environ[ROSE_HOME] + os.sep + LIB_DIR
+BOOST_LIB     = environ[BOOST_HOME] + os.sep + LIB_DIR
+
+INCLUDE_DIR   = 'include'
+ROSE_INCLUDE  = environ[ROSE_HOME] + os.sep + INCLUDE_DIR
+BOOST_INCLUDE = environ[BOOST_HOME] + os.sep + INCLUDE_DIR
+
+for var in [ROSE_LIB, ROSE_INCLUDE, BOOST_INCLUDE]:
+	if not os.path.isdir(var):
+        	print ("The directory '" + var + "' is needed to compile and link but cannot be found.")
+        	Exit(1)
+
+# Source files to compile and paths to the include directories on which they depend
+sourceFiles        = []
+includeDirectories = [ROSE_INCLUDE, BOOST_INCLUDE]
+
+# Walk every directory rooted with 'src' to find the source files and include directories
+for path, dirs, files in os.walk(os.path.abspath(os.curdir + os.sep + 'src')):
+	for file in files:
+		fileBasename, fileExtension = os.path.splitext(file)
+		fullPath = os.path.join(path, file)
+		dirBasename = os.path.dirname(fullPath)
+		
+		# Append all C++ source files found
+		if fileExtension == '.cpp' and fullPath not in sourceFiles:
+			sourceFiles.append(fullPath)
+		
+		# If header files are found then the directory in which they are included needs to be passed 
+		# on the g++ command line 
+		elif fileExtension == '.h' and dirBasename not in includeDirectories:
+			includeDirectories.append(dirBasename)
+
+# Include directories and flags for g++ ('-O2')
+env = Environment (CPPPATH=includeDirectories,
+		   CPPFLAGS=[ '-Wall', '-g', '-O0'],
+
+		   CXXCOMSTR="=========================== Compiling $SOURCE ===========================")
+
+# The target binary directory and name
+binDir = 'bin'
+target = 'translator'
+
+# Compile faster options
+if cpu_count() > 1:
+	env.SetOption('num_jobs', floor((cpu_count() * 3)/2))
+
+env.Decider('MD5-timestamp')
+env.SetOption('implicit_cache', 1)
+
+# Compile command with library dependencies and library paths
+
+env['ENV']['LD_LIBRARY_PATH'] = os.environ['LD_LIBRARY_PATH']
+
+env.Program(binDir + os.sep + target,
+	    	source  = sourceFiles,
+	    	LIBPATH = [ROSE_LIB, BOOST_LIB],
+	    	LIBS    = ['rose', 'boost_filesystem', 'boost_system'])
