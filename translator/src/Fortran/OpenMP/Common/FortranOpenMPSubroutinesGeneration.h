@@ -35,10 +35,15 @@
 #define FORTRAN_OPENMP_SUBROUTINES_GENERATION_H
 
 #include <FortranSubroutinesGeneration.h>
+#include <OpenMP.h>
+
+class FortranConstantDeclarations;
 
 class FortranOpenMPSubroutinesGeneration: public FortranSubroutinesGeneration
 {
   private:
+
+    FortranConstantDeclarations * OP2constants;
 
     virtual void
     createReductionSubroutines ();
@@ -57,7 +62,7 @@ class FortranOpenMPSubroutinesGeneration: public FortranSubroutinesGeneration
     FortranOpenMPSubroutinesGeneration (SgProject * project,
         FortranProgramDeclarationsAndDefinitions * declarations) :
       FortranSubroutinesGeneration (project, declarations,
-          "rose_openmp_code.F95")
+          OpenMP::Fortran::fileName)
     {
       generate ();
     }

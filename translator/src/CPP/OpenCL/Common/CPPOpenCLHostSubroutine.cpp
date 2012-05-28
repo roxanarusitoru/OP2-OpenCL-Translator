@@ -41,6 +41,46 @@
 #include "OP2.h"
 #include "Exceptions.h"
 
+void 
+CPPOpenCLHostSubroutine::addAllocateConstants (
+    SgScopeStatement * scope)
+{
+  using namespace SageBuilder;
+  using namespace SageInterface;
+  using std::string;
+  using std::vector;
+
+  Debug::getInstance ()->debugMessage (
+      "Adding actual op_allocate_constant statements", Debug::FUNCTION_LEVEL,
+      __FILE__, __LINE__);
+
+  for (vector <string>::const_iterator it = 
+      ((CPPUserSubroutine *) userSubroutine)->firstOpConstReference (); it 
+      != ((CPPUserSubroutine *) userSubroutine)->lastOpConstReference (); ++it)
+  {
+   
+   
+  string variableName = *it + "_d";
+  SgVariableDeclaration * variableDeclaration = 
+      RoseStatementsAndExpressionsBuilder::appendVariableDeclaration (
+          variableName, OpenCL::getMemoryType(scope), scope);
+
+  variableDeclarations->add (variableName, variableDeclaration);
+
+  SgFunctionCallExp * constantAllocation = 
+      OpenCL::getAllocateConstantExpression (subroutineScope,   
+          variableDeclarations->getReference (*it),
+          constantDeclarations->getDeclarations ()->getReference(*it)->
+          get_type ());
+
+  SgExprStatement * assignmentStatement = buildAssignStatement (
+      variableDeclarations->getReference (variableName), 
+      constantAllocation);
+  
+  appendStatement (assignmentStatement, scope);
+  }
+}
+
 void
 CPPOpenCLHostSubroutine::addOpDeclConstActualParameters (
     SgScopeStatement * scope, unsigned int argumentCounter)
@@ -59,11 +99,12 @@ CPPOpenCLHostSubroutine::addOpDeclConstActualParameters (
       != ((CPPUserSubroutine *) userSubroutine)->lastOpConstReference (); ++it)
   {
 
+  string variableName = *it + "_d";
   SgFunctionCallExp * kernelArgumentExpression =
       OpenCL::getSetKernelArgumentCallExpression (subroutineScope,
           variableDeclarations->getReference (OpenCL::kernelPointer),
           argumentCounter++, OpenCL::getMemoryType (scope),
-          variableDeclarations->getReference (*it));
+          buildOpaqueVarRefExp(variableName, scope));
 
     SgBitOrOp * orExpression = buildBitOrOp (
         variableDeclarations->getReference (OpenCL::errorCode),

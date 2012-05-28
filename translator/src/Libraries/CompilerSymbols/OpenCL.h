@@ -152,6 +152,25 @@ namespace OpenCL
    */
   SgType *
   getDoublePrecisionFloatType (SgScopeStatement * scope);
+  
+  /*
+   * ======================================================
+   * Function call to set an OpenCL constant allocation
+   * ======================================================
+   */
+  SgFunctionCallExp *
+  getAllocateConstantExpression(SgScopeStatement * scope, 
+      SgVarRefExp * constant, SgType * constantType);
+
+  /*
+   * ======================================================
+   * Function call to set an OpenCL kernel buffer 
+   * argument
+   * ======================================================
+   */
+  SgFunctionCallExp *
+  getSetKernelArgumentCallBufferExpression (SgScopeStatement * scope,
+      SgVarRefExp * openCLKernel, int argumentIndex, SgExpression * bufferRef);
 
   /*
    * ======================================================

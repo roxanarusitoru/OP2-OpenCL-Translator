@@ -53,6 +53,8 @@ class CPPOpenCLHostSubroutine: public CPPHostSubroutine
     CPPOpenCLConstantDeclarations * constantDeclarations;
 
   protected:
+    void 
+    addAllocateConstants (SgScopeStatement * scope);
 
     void
     addOpDeclConstActualParameters (SgScopeStatement * scope,

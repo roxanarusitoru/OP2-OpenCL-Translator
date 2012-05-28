@@ -36,24 +36,10 @@
 
 #include <FortranUserSubroutine.h>
 
-class FortranCUDAConstantDeclarations;
+class FortranConstantDeclarations;
 
 class FortranCUDAUserSubroutine: public FortranUserSubroutine
 {
-  private:
-  
-    /*
-     * ======================================================
-     * This boolean indicates if the user subroutine is one
-     * used as an argument to an op_par_loop or if it is 
-     * called inside a user kernel or another user subroutine
-     * It permits handling the "value" attribute in a 
-     * different way w.r.t. the parallelLoop object in which
-     * it is called and the positional identities of its
-     * formal parameters
-     * ======================================================
-     */
-    bool isUserKernel;
 
   public:
 
@@ -68,7 +54,7 @@ class FortranCUDAUserSubroutine: public FortranUserSubroutine
 
     virtual void appendAdditionalSubroutines ( SgScopeStatement * moduleScope,
       FortranParallelLoop * parallelLoop, FortranProgramDeclarationsAndDefinitions * declarations,
-      FortranCUDAConstantDeclarations * CUDAconstants, std::vector < SgProcedureHeaderStatement * > * allCalledRoutines);
+      FortranConstantDeclarations * CUDAconstants, std::vector < SgProcedureHeaderStatement * > * allCalledRoutines);
 
     FortranCUDAUserSubroutine (SgScopeStatement * moduleScope,
         FortranParallelLoop * parallelLoop,

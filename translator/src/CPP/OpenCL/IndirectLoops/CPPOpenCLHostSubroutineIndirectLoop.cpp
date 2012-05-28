@@ -59,7 +59,7 @@ CPPOpenCLHostSubroutineIndirectLoop::createKernelFunctionCallStatement (
    * ======================================================
    * Assign the kernel pointer using the run-time support
    * for OpenCL
-   * ======================================================
+  * ======================================================
    */
 
   SgExprStatement * assignmentStatement1 = buildAssignStatement (
@@ -369,7 +369,7 @@ CPPOpenCLHostSubroutineIndirectLoop::createKernelFunctionCallStatement (
   SgFunctionCallExp * kernelArgumentExpression9 =
       OpenCL::getSetKernelArgumentCallExpression (subroutineScope,
           variableDeclarations->getReference (OpenCL::kernelPointer),
-          argumentCounter++, OpenCL::getMemoryType (scope),
+          argumentCounter++, buildIntType(),
           variableDeclarations->getReference (blockOffset));
 
   SgBitOrOp * orExpression9 = buildBitOrOp (variableDeclarations->getReference (
@@ -387,11 +387,19 @@ CPPOpenCLHostSubroutineIndirectLoop::createKernelFunctionCallStatement (
    */
 
   SgFunctionCallExp * kernelArgumentExpression10 =
+      OpenCL::getSetKernelArgumentCallBufferExpression (subroutineScope,
+          variableDeclarations->getReference (OpenCL::kernelPointer),
+          argumentCounter++,
+          variableDeclarations->getReference (OpenCL::sharedMemorySize));
+  
+  
+  /*SgFunctionCallExp * kernelArgumentExpression10 = 
       OpenCL::getSetKernelArgumentCallExpression (subroutineScope,
           variableDeclarations->getReference (OpenCL::kernelPointer),
-          argumentCounter++, OpenCL::getMemoryType (scope),
-          variableDeclarations->getReference (OpenCL::sharedMemorySize));
-
+          argumentCounter++,
+          variableDeclarations->getReference (OpenCL::sharedMemorySize),
+          SageBuilder::buildNullExpression());
+*/
   SgBitOrOp * orExpression10 = buildBitOrOp (
       variableDeclarations->getReference (OpenCL::errorCode),
       kernelArgumentExpression10);
@@ -424,6 +432,8 @@ CPPOpenCLHostSubroutineIndirectLoop::createPlanFunctionExecutionStatements ()
       __FILE__, __LINE__);
 
   SgBasicBlock * block = buildBasicBlock ();
+
+  addAllocateConstants(block);
 
   SgExprStatement * assignmentStatement1 = buildAssignStatement (
       variableDeclarations->getReference (blockOffset), buildIntVal (0));
@@ -500,7 +510,7 @@ CPPOpenCLHostSubroutineIndirectLoop::createPlanFunctionExecutionStatements ()
       variableDeclarations->getReference (OpenCL::totalThreadNumber),
       multiplyExpression5);
 
-  appendStatement (assignmentStatement5, subroutineScope);
+  appendStatement (assignmentStatement5, loopBody);
 
   /*
    * ======================================================

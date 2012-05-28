@@ -78,8 +78,8 @@ CPPOpenCLHostSubroutineDirectLoop::createKernelFunctionCallStatement (
   {
     if (parallelLoop->isDuplicateOpDat (i) == false)
     {
-      if (parallelLoop->isDirect (i))
-      {
+      //if (parallelLoop->isDirect (i))
+      //{
         SgDotExp * dotExpression = buildDotExp (
             variableDeclarations->getReference (getOpDatName (i)),
             buildOpaqueVarRefExp (OP2::RunTimeVariableNames::data_d, scope));
@@ -113,7 +113,7 @@ CPPOpenCLHostSubroutineDirectLoop::createKernelFunctionCallStatement (
         }
 
         argumentCounter++;
-      }
+      //}
     }
   }
 
@@ -169,10 +169,16 @@ CPPOpenCLHostSubroutineDirectLoop::createKernelFunctionCallStatement (
    * ======================================================
    */
 
-  SgFunctionCallExp * kernelArgumentExpression4 =
+  /*SgFunctionCallExp * kernelArgumentExpression4 =
       OpenCL::getSetKernelArgumentCallExpression (scope,
           variableDeclarations->getReference (OpenCL::kernelPointer),
           argumentCounter, OpenCL::getSizeType (scope),
+          variableDeclarations->getReference (OpenCL::sharedMemorySize));*/
+
+  SgFunctionCallExp * kernelArgumentExpression4 = 
+      OpenCL::getSetKernelArgumentCallBufferExpression (scope,  
+          variableDeclarations->getReference (OpenCL::kernelPointer),
+          argumentCounter, 
           variableDeclarations->getReference (OpenCL::sharedMemorySize));
 
   SgBitOrOp * orExpression4 = buildBitOrOp (variableDeclarations->getReference (

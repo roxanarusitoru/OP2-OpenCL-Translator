@@ -32,6 +32,8 @@
 
 #include "OpenCL.h"
 #include <rose.h>
+#include <ctype.h>
+#include <stdlib.h>
 
 SgType *
 OpenCL::getKernelType (SgScopeStatement * scope)
@@ -130,6 +132,91 @@ OpenCL::getDoublePrecisionFloatType (SgScopeStatement * scope)
 }
 
 SgFunctionCallExp *
+OpenCL::getAllocateConstantExpression(SgScopeStatement * scope, 
+      SgVarRefExp * constant, SgType * constantType)
+{
+  using namespace SageBuilder;
+  using std::string;
+
+  SgExprListExp * actualParameters = buildExprListExp ();
+  
+  actualParameters->append_expression (buildAddressOfOp (constant));
+
+  SgType * type = constantType;
+
+  string typeName = constantType->class_name ();
+
+  long position = typeName.find ("[");
+  
+  int factor = 0;
+
+  if (position != string::npos) 
+  {
+   
+    string new_type  = typeName.substr (position + 1);
+  
+    string::iterator it;
+
+    for (it = new_type.begin (); it < new_type.end (); ++it)
+    {
+  
+      if (!isdigit (*it))
+      {
+  
+        new_type.erase (it);
+  
+      }
+
+    }
+   
+    //factor = strtol (new_type, NULL, 10);
+    factor = atoi (new_type.c_str ());
+
+    if (type->isIntegerType ())
+    {
+      new_type = "int";          
+
+    } else if (type->isFloatType ())
+    {
+
+      new_type = "float";
+
+    }     
+
+    type = buildOpaqueType (new_type, scope);
+
+  }
+
+  SgMultiplyOp * factorMult =
+      buildMultiplyOp (buildIntVal (factor), buildSizeOfOp (type));
+    
+  actualParameters->append_expression (factorMult);
+
+  return buildFunctionCallExp ("op_allocate_constant", 
+      OpenCL::getMemoryType(scope), actualParameters, scope);
+}
+
+SgFunctionCallExp *
+OpenCL::getSetKernelArgumentCallBufferExpression (SgScopeStatement * scope,
+    SgVarRefExp * openCLKernel, int argumentIndex, SgExpression * bufferRef) 
+{
+  using namespace SageBuilder;
+  
+  SgExprListExp * actualParameters = buildExprListExp ();
+
+  actualParameters->append_expression (openCLKernel);
+
+  actualParameters->append_expression (buildIntVal (argumentIndex));
+
+  actualParameters->append_expression (bufferRef);
+
+  actualParameters->append_expression (buildOpaqueVarRefExp("NULL", scope));
+
+  return buildFunctionCallExp ("clSetKernelArg", buildIntType (),
+      actualParameters, scope);
+}
+
+SgFunctionCallExp *
 OpenCL::getSetKernelArgumentCallExpression (SgScopeStatement * scope,
     SgVarRefExp * openCLKernel, int argumentIndex, SgType * sizeOfArgument,
     SgExpression * argument)
@@ -173,7 +260,7 @@ OpenCL::getEnqueueKernelCallExpression (SgScopeStatement * scope,
 
   actualParameters->append_expression (buildIntVal (1));
 
-  actualParameters->append_expression (buildIntVal (0));
+  actualParameters->append_expression (buildOpaqueVarRefExp("NULL", scope));
 
   actualParameters->append_expression (buildAddressOfOp (globalWorkSize));
 
@@ -181,7 +268,7 @@ OpenCL::getEnqueueKernelCallExpression (SgScopeStatement * scope,
 
   actualParameters->append_expression (buildIntVal (0));
 
-  actualParameters->append_expression (buildIntVal (0));
+  actualParameters->append_expression (buildOpaqueVarRefExp("NULL", scope));
 
   actualParameters->append_expression (buildAddressOfOp (event));
 

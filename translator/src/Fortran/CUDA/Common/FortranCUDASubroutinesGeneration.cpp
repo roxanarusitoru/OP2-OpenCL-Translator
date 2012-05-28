@@ -43,11 +43,12 @@
 #include "FortranCUDAModuleDeclarationsIndirectLoop.h"
 #include "FortranCUDAOpDatCardinalitiesDeclarationIndirectLoop.h"
 #include "FortranOpDatDimensionsDeclaration.h"
+#include <FortranPrintProfilingInformationSubroutine.h>
 #include "FortranParallelLoop.h"
 #include "FortranProgramDeclarationsAndDefinitions.h"
 #include "FortranTypesBuilder.h"
 #include "FortranStatementsAndExpressionsBuilder.h"
-#include "FortranCUDAConstantDeclarations.h"
+#include "FortranConstantDeclarations.h"
 #include "FortranOP2Definitions.h"
 #include "OP2Definitions.h"
 #include "RoseHelper.h"
@@ -57,6 +58,7 @@
 #include "Globals.h"
 #include "CUDA.h"
 #include <boost/algorithm/string.hpp>
+#include "CompilerGeneratedNames.h"
 
 void
 FortranCUDASubroutinesGeneration::processOP2ConstantDeclarations ()
@@ -165,10 +167,17 @@ FortranCUDASubroutinesGeneration::createReductionSubroutines ()
 void
 FortranCUDASubroutinesGeneration::createSubroutines ()
 {
+  using namespace OP2VariableNames;
   using std::string;
   using std::map;
 
-  CUDAconstants->appendCUDAConstantInitialisationToModule ( moduleScope, declarations );
+  string const & printProfilingInformationName = printProfilingInformation;
+
+  FortranPrintProfilingInformationSubroutine * printProfilingInformationSubroutineInstance =
+    new FortranPrintProfilingInformationSubroutine (printProfilingInformationName,
+      moduleScope, moduleDeclarations, declarations);
+
+  CUDAconstants->appendConstantInitialisationToModule ( moduleScope, declarations, /* isCuda = */ true );
   
   /*
    * ======================================================
@@ -202,7 +211,9 @@ FortranCUDASubroutinesGeneration::createSubroutines ()
     FortranCUDAUserSubroutine * userDeviceSubroutine =
         new FortranCUDAUserSubroutine (moduleScope, parallelLoop, declarations);
 
-    CUDAconstants->patchReferencesToCUDAConstants (
+    userDeviceSubroutine->createStatements ();        
+        
+    CUDAconstants->patchReferencesToConstants (
         userDeviceSubroutine->getSubroutineHeaderStatement ());
 
     /*
@@ -290,8 +301,8 @@ FortranCUDASubroutinesGeneration::createModuleDeclarations ()
   using std::map;
   using std::string;
 
-  CUDAconstants = new FortranCUDAConstantDeclarations (declarations,
-      moduleScope);
+  CUDAconstants = new FortranConstantDeclarations (declarations,
+      moduleScope, true);
 
   /*
    * ======================================================
