@@ -115,7 +115,8 @@ CPPUserSubroutine::createFormalParameterDeclarations ()
 
 /*
  * Nicolas: unused by OPEN, CUDA ? is that needed for OpenCL ?
- 
+ * Roxana: this is needed for the current OpenCL implementation. 
+*/ 
   for (vector <string>::const_iterator it = referencedOpDeclConsts.begin (); it
       != referencedOpDeclConsts.end (); ++it)
   {
@@ -128,7 +129,7 @@ CPPUserSubroutine::createFormalParameterDeclarations ()
             RoseStatementsAndExpressionsBuilder::appendVariableDeclarationAsFormalParameter (
                 *it, type, subroutineScope, formalParameters);
   }
-*/
+/* */
 }
 
 CPPUserSubroutine::CPPUserSubroutine (SgScopeStatement * moduleScope,
