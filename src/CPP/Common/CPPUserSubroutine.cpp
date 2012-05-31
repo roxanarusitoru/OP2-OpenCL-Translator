@@ -117,18 +117,21 @@ CPPUserSubroutine::createFormalParameterDeclarations ()
 
     if (parallelLoop->isDirectLoop ()) 
     {
-      if (!parallelLoop->isDirect (opDatIndex)) 
-      {
+      //if (!parallelLoop->isDirect (opDatIndex)) 
+      //{
         int dimension = parallelLoop->getOpDatDimension (opDatIndex);
 
-        if (dimension == 1)
+        if (!parallelLoop->isIncremented (opDatIndex))
         {
-          (*variableDeclaration->get_variables ().begin ())->get_storageModifier ().setOpenclGlobal ();
-        } else
-        {
-          (*variableDeclaration->get_variables ().begin ())->get_storageModifier ().setOpenclLocal ();
+          if (dimension == 1)
+          {
+            (*variableDeclaration->get_variables ().begin ())->get_storageModifier ().setOpenclGlobal ();
+          } else
+          {
+            //(*variableDeclaration->get_variables ().begin ())->get_storageModifier ().setOpenclLocal ();
+          }
         }
-      }
+      //}
     } else 
     {
       if (!parallelLoop->isDirect (opDatIndex))
@@ -139,9 +142,9 @@ CPPUserSubroutine::createFormalParameterDeclarations ()
         }
       } else
       {
-        if (!parallelLoop->isIncremented (opDatIndex)) 
+        if (parallelLoop->isIncremented (opDatIndex)) 
         {
-          //(*variableDeclaration->get_variables ().begin ())->get_storageModifier ().setOpenclLocal ();
+          (*variableDeclaration->get_variables ().begin ())->get_storageModifier ().setOpenclLocal ();
         } else
         {
           (*variableDeclaration->get_variables ().begin ())->get_storageModifier ().setOpenclGlobal ();
