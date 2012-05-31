@@ -111,7 +111,6 @@ CPPUserSubroutine::createFormalParameterDeclarations ()
         * variableDeclaration =
             RoseStatementsAndExpressionsBuilder::appendVariableDeclarationAsFormalParameter (
                 variableName, type, subroutineScope, formalParameters);
-  //if (
 
     //(*variableDeclaration->get_variables ().begin())->get_storageModifier ().setOpenclLocal ();
   }
@@ -119,7 +118,7 @@ CPPUserSubroutine::createFormalParameterDeclarations ()
 /*
  * Nicolas: unused by OPEN, CUDA ? is that needed for OpenCL ?
  * Roxana: this is needed for the current OpenCL implementation. 
-*//* 
+*/ 
   for (vector <string>::const_iterator it = referencedOpDeclConsts.begin (); it
       != referencedOpDeclConsts.end (); ++it)
   {
@@ -132,8 +131,11 @@ CPPUserSubroutine::createFormalParameterDeclarations ()
             RoseStatementsAndExpressionsBuilder::appendVariableDeclarationAsFormalParameter (
                 *it, type, subroutineScope, formalParameters);
 
+
+    //TODO: let's not write architecture dependent stuff in the CPP COmmon library! 
+    //But not sure how...
     (*variableDeclaration->get_variables ().begin())->get_storageModifier ().setOpenclConstant ();
-  }*/
+  }
 /* */
 }
 

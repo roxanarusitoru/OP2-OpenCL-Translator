@@ -40,20 +40,5 @@ CPPOpenCLUserSubroutine::CPPOpenCLUserSubroutine (
   CPPUserSubroutine (moduleScope, parallelLoop, declarations)
 {
 
-/*  for (vector <string>::const_iterator it = referencedOpDeclConsts.begin (); it
-      != referencedOpDeclConsts.end (); ++it)
-  {
-    OpConstDefinition * opConst = declarations->getOpConstDefinition (*it);
-
-    SgType * type = opConst->getType ();
-
-    SgVariableDeclaration
-        * variableDeclaration =
-            RoseStatementsAndExpressionsBuilder::appendVariableDeclarationAsFormalParameter (
-                *it, type, subroutineScope, formalParameters);
-
-    (*variableDeclaration->get_variables ().begin())->get_storageModifier ().setOpenclConstant ();
-  }*/
-  
   subroutineHeaderStatement->get_functionModifier ().setInline ();
 }
