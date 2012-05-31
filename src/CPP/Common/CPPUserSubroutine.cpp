@@ -77,7 +77,7 @@ CPPUserSubroutine::createStatements ()
 
   for (vector <SgStatement *>::iterator it = originalStatements.begin (); it
       != originalStatements.end (); ++it)
-  {
+  { 
     appendStatement (*it, subroutineScope);
   }
 }
@@ -99,6 +99,8 @@ CPPUserSubroutine::createFormalParameterDeclarations ()
   SgFunctionParameterList * originalParameters =
       originalSubroutine->get_parameterList ();
 
+  int opDatIndex = 1;
+
   for (SgInitializedNamePtrList::iterator paramIt =
       originalParameters->get_args ().begin (); paramIt
       != originalParameters->get_args ().end (); ++paramIt)
@@ -112,7 +114,42 @@ CPPUserSubroutine::createFormalParameterDeclarations ()
             RoseStatementsAndExpressionsBuilder::appendVariableDeclarationAsFormalParameter (
                 variableName, type, subroutineScope, formalParameters);
 
+
+    if (parallelLoop->isDirectLoop ()) 
+    {
+      if (!parallelLoop->isDirect (opDatIndex)) 
+      {
+        int dimension = parallelLoop->getOpDatDimension (opDatIndex);
+
+        if (dimension == 1)
+        {
+          (*variableDeclaration->get_variables ().begin ())->get_storageModifier ().setOpenclGlobal ();
+        } else
+        {
+          (*variableDeclaration->get_variables ().begin ())->get_storageModifier ().setOpenclLocal ();
+        }
+      }
+    } else 
+    {
+      if (!parallelLoop->isDirect (opDatIndex))
+      {
+        if (!parallelLoop->isIncremented (opDatIndex)) 
+        {
+          (*variableDeclaration->get_variables ().begin ())->get_storageModifier ().setOpenclLocal ();
+        }
+      } else
+      {
+        if (!parallelLoop->isIncremented (opDatIndex)) 
+        {
+          //(*variableDeclaration->get_variables ().begin ())->get_storageModifier ().setOpenclLocal ();
+        } else
+        {
+          (*variableDeclaration->get_variables ().begin ())->get_storageModifier ().setOpenclGlobal ();
+        } 
+      }      
+    }
     //(*variableDeclaration->get_variables ().begin())->get_storageModifier ().setOpenclLocal ();
+    ++opDatIndex;
   }
 
 /*
