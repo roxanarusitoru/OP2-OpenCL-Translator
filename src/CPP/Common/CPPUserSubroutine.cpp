@@ -90,6 +90,7 @@ CPPUserSubroutine::createLocalVariableDeclarations ()
 void
 CPPUserSubroutine::createFormalParameterDeclarations ()
 {
+  using namespace SageBuilder;
   using std::string;
   using std::vector;
 
@@ -169,7 +170,7 @@ CPPUserSubroutine::createFormalParameterDeclarations ()
     SgVariableDeclaration
         * variableDeclaration =
             RoseStatementsAndExpressionsBuilder::appendVariableDeclarationAsFormalParameter (
-                *it, type, subroutineScope, formalParameters);
+                *it, buildPointerType (type), subroutineScope, formalParameters);
 
 
     //TODO: let's not write architecture dependent stuff in the CPP COmmon library! 

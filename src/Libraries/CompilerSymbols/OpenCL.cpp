@@ -387,8 +387,14 @@ OpenCL::getLocalWorkItemIDCallStatement (SgScopeStatement * scope,
       actualParameters, scope);
 }
 
+
+/*
+ * Accordig to OpenCL 1.1 spec:
+ * get_global_id: returns the unique global work-item ID
+ * not the WorkGroupID
+ */
 SgFunctionCallExp *
-OpenCL::getWorkGroupIDCallStatement (SgScopeStatement * scope,
+OpenCL::getGlobalWorkItemIDCallStatement (SgScopeStatement * scope,
     SgExpression * expression)
 {
   using namespace SageBuilder;
@@ -405,6 +411,32 @@ OpenCL::getWorkGroupIDCallStatement (SgScopeStatement * scope,
   }
 
   return buildFunctionCallExp ("get_global_id", buildIntType (),
+      actualParameters, scope);
+}
+
+/*
+ * According to OpenCL 1.1 spec:
+ * get_group_id: returns the work-group ID
+ */
+
+SgFunctionCallExp *
+OpenCL::getWorkGroupIDCallStatement (SgScopeStatement * scope, 
+    SgExpression * expression)
+{
+  using namespace SageBuilder;
+  
+  SgExprListExp * actualParameters = buildExprListExp ();
+  
+  if (expression == NULL) 
+  {
+    actualParameters->append_expression (buildIntVal (0));
+  }
+  else
+  {
+    actualParameters->append_expression (expression);
+  }
+  
+  return buildFunctionCallExp ("get_group_id", buildIntType (),
       actualParameters, scope);
 }
 

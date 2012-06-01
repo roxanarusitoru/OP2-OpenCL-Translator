@@ -245,6 +245,15 @@ namespace OpenCL
    * ======================================================
    */
   SgFunctionCallExp *
+  getGlobalWorkItemIDCallStatement (SgScopeStatement * scope, 
+      SgExpression * expression = NULL);
+
+  /*
+   * ======================================================
+   * Function call to OpenCL get_group_id.
+   * ======================================================
+   */
+  SgFunctionCallExp *
   getWorkGroupIDCallStatement (SgScopeStatement * scope,
       SgExpression * expression = NULL);
 
