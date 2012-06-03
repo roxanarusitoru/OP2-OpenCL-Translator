@@ -1252,7 +1252,9 @@ CPPOpenCLKernelSubroutineIndirectLoop::createLocalVariableDeclarations ()
 
         SgVariableDeclaration * variableDeclaration =
             RoseStatementsAndExpressionsBuilder::appendVariableDeclaration (
-                variableName, buildPointerType (buildIntType ()),
+                variableName, 
+                //buildOpaqueType (buildPointerType (buildIntType ())->class_name () + " __local ", subroutineScope),
+                buildOpaqueType (" int* __local ", subroutineScope),
                 subroutineScope);
 
         variableDeclaration->get_declarationModifier ().get_storageModifier ().setOpenclGlobal ();
@@ -1300,8 +1302,10 @@ CPPOpenCLKernelSubroutineIndirectLoop::createLocalVariableDeclarations ()
 
         SgVariableDeclaration * variableDeclaration =
             RoseStatementsAndExpressionsBuilder::appendVariableDeclaration (
-                variableName, buildPointerType (parallelLoop->getOpDatBaseType (
-                    i)), subroutineScope);
+                variableName,
+                //buildPointerType (parallelLoop->getOpDatBaseType (i)), 
+                buildOpaqueType (" float * __local ", subroutineScope), 
+                subroutineScope);
 
         variableDeclaration->get_declarationModifier ().get_storageModifier ().setOpenclLocal ();
 
