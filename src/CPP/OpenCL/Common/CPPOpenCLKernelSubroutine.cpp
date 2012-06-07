@@ -373,12 +373,19 @@ CPPOpenCLKernelSubroutine::createOpDeclConstFormalParameterDeclarations ()
       != ((CPPUserSubroutine *) userSubroutine)->lastOpConstReference (); ++it)
   {
     string const & variableName = *it;
+  
+    SgType * type = declarations->getOpConstDefinition (variableName)->getType ();
+  
+    if (variableName.compare("qinf") == 0) 
+    {
+      type = buildOpaqueType("float ", subroutineScope); 
+    }
 
     SgVariableDeclaration
         * variableDeclaration =
             RoseStatementsAndExpressionsBuilder::appendVariableDeclarationAsFormalParameter (
                 variableName,
-                buildPointerType (declarations->getOpConstDefinition (variableName)->getType ()),
+                buildPointerType (type),
                 subroutineScope, formalParameters);
 
     (*variableDeclaration->get_variables ().begin ())->get_storageModifier ().setOpenclConstant ();

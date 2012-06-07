@@ -167,6 +167,12 @@ CPPUserSubroutine::createFormalParameterDeclarations ()
 
     SgType * type = opConst->getType ();
 
+    string variableName = opConst->getVariableName ();
+
+    if (variableName.compare("qinf") == 0 || variableName.compare("*qinf") == 0) {
+      type = buildOpaqueType("float ", subroutineScope);  
+    } 
+
     SgVariableDeclaration
         * variableDeclaration =
             RoseStatementsAndExpressionsBuilder::appendVariableDeclarationAsFormalParameter (
