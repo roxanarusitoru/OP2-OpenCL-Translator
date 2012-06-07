@@ -53,6 +53,9 @@ class CPPOpenCLHostSubroutine: public CPPHostSubroutine
     CPPOpenCLConstantDeclarations * constantDeclarations;
 
   protected:
+    void
+    addTimingInitialDeclaration (SgScopeStatement * scope);
+  
     void 
     addAllocateConstants (SgScopeStatement * scope);
 

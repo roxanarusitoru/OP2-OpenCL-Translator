@@ -31,6 +31,7 @@
 
 
 #include "OpenCL.h"
+#include <CPPTypesBuilder.h>
 #include <rose.h>
 #include <ctype.h>
 #include <stdlib.h>
@@ -452,6 +453,64 @@ OpenCL::createWorkItemsSynchronisationCallStatement (SgScopeStatement * scope)
 
   return buildFunctionCallExp ("barrier", buildVoidType (), actualParameters,
       scope);
+}
+/*
+SgFunctionCallExp *
+OpenCL::getOpTimer (SgScopeStatement * scope,
+    SgVarRefExp * cpuTime, SgVarRefExp * wallTime)
+{
+
+  using namespace SageBuilder;
+
+  SgExprListExp * actualParameters = buildExprListExp ();
+ 
+  actualParameters->append_expression  (buildOpaqueVarRefExp (
+            CLK_LOCAL_MEM_FENCE, scope)); 
+//  actualParameters->append_expression (buildAddressOfOp (cpuTime));
+
+//  actualParameters->append_expression (buildAddressOfOp (wallTime));
+
+  return buildFunctionCallExp ("getkernel", buildVoidType (), actualParameters,
+      scope);
+}*/
+/*
+SgFunctionCallExp *
+OpenCL::getOpTimerCallStatement (SgScopeStatement * scope)
+{
+  using namespace SageBuilder;
+
+  SgExprListExp * actualParameters = buildExprListExp ();
+    
+  actualParameters->append_expression (buildOpaqueVarRefExp (
+      "cpu_t1", scope));
+  
+  actualParameters->append_expression (buildOpaqueVarRefExp (
+      "wall_t1", scope));
+
+//  SgFunctionDeclaration * fctDecl = new SgFunctionDeclaration( "op_timers", buildVoidType (), 
+  
+//  SgFunctionRefExp * fctExp = buildFunctionRefExp (
+
+  return buildFunctionCallExp ("op_timers", buildVoidType (), 
+      actualParameters, scope);
+}*/
+
+SgFunctionCallExp * 
+OpenCL::OP2RuntimeSupport::getOpTimerCallStatement (SgScopeStatement * scope,
+    SgVarRefExp * cpuTime, SgVarRefExp * wallTime)
+{
+  using namespace SageBuilder;
+  
+  SgFunctionSymbol * functionSymbol = 
+      CPPTypesBuilder::buildNewCPPSubroutine("op_timers", scope);
+  
+  SgExprListExp * actualParameters = buildExprListExp ();
+  
+  actualParameters->append_expression (cpuTime);
+  
+  actualParameters->append_expression (wallTime);
+
+  return buildFunctionCallExp (functionSymbol, actualParameters);
 }
 
 SgFunctionCallExp *

@@ -265,8 +265,19 @@ namespace OpenCL
   SgFunctionCallExp *
   createWorkItemsSynchronisationCallStatement (SgScopeStatement * scope);
 
+/*  SgFunctionCallExp *
+  getOpTimer (SgScopeStatement * scope, SgVarRefExp * cpuTime, SgVarRefExp * wallTime);
+*/
+
+//  SgFunctionCallExp *
+//  getOpTimerCallStatement (SgScopeStatement * scope);
+
   namespace OP2RuntimeSupport
   {
+    SgFunctionCallExp * 
+    getOpTimerCallStatement (SgScopeStatement * scope,
+    SgVarRefExp * cpuTime, SgVarRefExp * wallTime);
+
     SgFunctionCallExp *
     getKernel (SgScopeStatement * scope, std::string const & kernelName);
 

@@ -210,6 +210,8 @@ CPPOpenCLHostSubroutineDirectLoop::createOpenCLKernelInitialisationStatements ()
       "Creating OpenCL kernel initialisation statements",
       Debug::FUNCTION_LEVEL, __FILE__, __LINE__);
 
+  //addTimingInitialDeclaration (subroutineScope);
+
   /*
    * ======================================================
    * Setting blocks per grid

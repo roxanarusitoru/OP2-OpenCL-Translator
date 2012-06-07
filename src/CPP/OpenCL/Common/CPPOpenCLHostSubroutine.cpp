@@ -41,6 +41,72 @@
 #include "OP2.h"
 #include "Exceptions.h"
 
+void
+CPPOpenCLHostSubroutine::addTimingInitialDeclaration (
+    SgScopeStatement * scope)
+{
+  using namespace SageBuilder;
+  using namespace SageInterface;
+  using std::string;
+  
+  Debug::getInstance ()->debugMessage (
+      "Adding initial timing statements", Debug::FUNCTION_LEVEL,
+      __FILE__, __LINE__);
+
+  string const cpuT1 = "cpu_t1";
+
+  SgVariableDeclaration * cpuT1Declaration =  
+      RoseStatementsAndExpressionsBuilder::appendVariableDeclaration (
+          cpuT1, buildDoubleType (), scope);
+  
+  variableDeclarations->add (cpuT1, cpuT1Declaration);
+
+  string const cpuT2 = "cpu_t2";
+
+  SgVariableDeclaration * cpuT2Declaration =  
+      RoseStatementsAndExpressionsBuilder::appendVariableDeclaration (
+          cpuT2, buildDoubleType (), scope);
+  
+  variableDeclarations->add (cpuT2, cpuT2Declaration);
+
+  string const wallT1 = "wall_t1";
+
+  SgVariableDeclaration * wallT1Declaration =  
+      RoseStatementsAndExpressionsBuilder::appendVariableDeclaration (
+          wallT1, buildDoubleType (), scope);
+  
+  variableDeclarations->add (wallT1, wallT1Declaration);
+
+  string const wallT2 = "wall_t2";
+
+  SgVariableDeclaration * wallT2Declaration =  
+      RoseStatementsAndExpressionsBuilder::appendVariableDeclaration (
+          wallT2, buildDoubleType (), scope);
+  
+  variableDeclarations->add (wallT2, wallT2Declaration);
+
+  SgFunctionCallExp * opTimerInitialExp = 
+      OpenCL::OP2RuntimeSupport::getOpTimerCallStatement (scope, 
+          variableDeclarations->getReference (cpuT1),
+          variableDeclarations->getReference (wallT1));
+
+  appendStatement (buildExprStatement (opTimerInitialExp), scope);
+
+/*  SgFunctionCallExp * opTimerInitialExp = 
+      OpenCL::getOpTimer (scope, 
+          buildOpaqueVarRefExp (cpuT1, scope),
+          buildOpaqueVarRefExp (wallT1, scope));
+          //variableDeclarations->getReference (cpuT1), 
+          //variableDeclarations->getReference (wallT1));
+
+  Debug::getInstance ()->debugMessage (
+      "build expr statement next", Debug::FUNCTION_LEVEL,
+      __FILE__, __LINE__);
+
+  appendStatement (buildExprStatement (opTimerInitialExp), scope);*/
+  
+}
+
 void 
 CPPOpenCLHostSubroutine::addAllocateConstants (
     SgScopeStatement * scope)

@@ -433,12 +433,14 @@ CPPOpenCLHostSubroutineIndirectLoop::createPlanFunctionExecutionStatements ()
 
   SgBasicBlock * block = buildBasicBlock ();
 
-  addAllocateConstants(block);
+  addAllocateConstants (block);
 
   SgExprStatement * assignmentStatement1 = buildAssignStatement (
       variableDeclarations->getReference (blockOffset), buildIntVal (0));
 
   appendStatement (assignmentStatement1, block);
+
+  addTimingInitialDeclaration (block);
 
   /*
    * ======================================================
