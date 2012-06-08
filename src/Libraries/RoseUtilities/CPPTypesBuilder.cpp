@@ -24,11 +24,11 @@ CPPTypesBuilder::buildNewCPPSubroutine (
   SgFunctionSymbol * functionSymbol = buildFunctionDeclaration (functionName,
       scope);
 
-  SgProcedureHeaderStatement * procedureHeaderStatement =
+/*  SgProcedureHeaderStatement * procedureHeaderStatement =
       isSgProcedureHeaderStatement (functionSymbol->get_declaration ());
 
   procedureHeaderStatement->set_subprogram_kind (
       SgProcedureHeaderStatement::e_subroutine_subprogram_kind);
-
+*/
   return functionSymbol;
 }           

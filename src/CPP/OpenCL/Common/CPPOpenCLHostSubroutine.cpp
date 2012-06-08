@@ -85,14 +85,17 @@ CPPOpenCLHostSubroutine::addTimingInitialDeclaration (
   
   variableDeclarations->add (wallT2, wallT2Declaration);
 
-  SgFunctionCallExp * opTimerInitialExp = 
+  addTextForUnparser(scope, "op_timers(cpuT1, wallT1);",
+      AstUnparseAttribute::e_before);
+
+/*  SgFunctionCallExp * opTimerInitialExp = 
       OpenCL::OP2RuntimeSupport::getOpTimerCallStatement (scope, 
           variableDeclarations->getReference (cpuT1),
           variableDeclarations->getReference (wallT1));
 
   appendStatement (buildExprStatement (opTimerInitialExp), scope);
 
-/*  SgFunctionCallExp * opTimerInitialExp = 
+  SgFunctionCallExp * opTimerInitialExp = 
       OpenCL::getOpTimer (scope, 
           buildOpaqueVarRefExp (cpuT1, scope),
           buildOpaqueVarRefExp (wallT1, scope));

@@ -440,7 +440,7 @@ CPPOpenCLHostSubroutineIndirectLoop::createPlanFunctionExecutionStatements ()
 
   appendStatement (assignmentStatement1, block);
 
-  //addTimingInitialDeclaration (block);
+  addTimingInitialDeclaration (block);
 
   /*
    * ======================================================
