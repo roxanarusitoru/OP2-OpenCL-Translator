@@ -35,15 +35,18 @@
 #define CPP_OPENCL_HOST_SUBROUTINE_H
 
 #include <CPPHostSubroutine.h>
+#include <CPPProgramDeclarationsAndDefinitions.h>
 
 class CPPOpenCLKernelSubroutine;
 class CPPModuleDeclarations;
 class CPPUserSubroutine;
 class CPPOpenCLConstantDeclarations;
 class SgScopeStatement;
+class CPPProgramDeclarationsAndDefinitions;
 
 class CPPOpenCLHostSubroutine: public CPPHostSubroutine
 {
+
   protected:
 
     CPPModuleDeclarations * moduleDeclarations;
@@ -52,9 +55,15 @@ class CPPOpenCLHostSubroutine: public CPPHostSubroutine
 
     CPPOpenCLConstantDeclarations * constantDeclarations;
 
+    CPPProgramDeclarationsAndDefinitions * declarations;
+
   protected:
+
     void
     addTimingInitialDeclaration (SgScopeStatement * scope);
+
+    void
+    addTimingFinalDeclaration (SgScopeStatement * scope);
   
     void 
     addAllocateConstants (SgScopeStatement * scope);
@@ -89,7 +98,8 @@ class CPPOpenCLHostSubroutine: public CPPHostSubroutine
         CPPParallelLoop * parallelLoop,
         CPPModuleDeclarations * moduleDeclarations,
         CPPUserSubroutine * userSubroutine,
-        CPPOpenCLConstantDeclarations * constantDeclarations);
+        CPPOpenCLConstantDeclarations * constantDeclarations,
+        CPPProgramDeclarationsAndDefinitions * declarations);
 };
 
 #endif

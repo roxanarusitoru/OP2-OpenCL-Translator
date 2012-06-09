@@ -514,6 +514,24 @@ OpenCL::OP2RuntimeSupport::getOpTimerCallStatement (SgScopeStatement * scope,
 }
 
 SgFunctionCallExp *
+OpenCL::OP2RuntimeSupport::getOpTimingReallocCallStatement (SgScopeStatement * scope,
+  SgExpression * index) 
+{
+  using namespace SageBuilder;
+  
+  SgExprListExp * actualParameters = buildExprListExp ();
+    
+  if (index == NULL) {
+    index = buildIntVal(0);
+  }
+
+  actualParameters->append_expression (index);
+  
+  return buildFunctionCallExp ("op_timing_realloc", buildVoidType (), actualParameters, 
+      scope);
+}
+
+SgFunctionCallExp *
 OpenCL::OP2RuntimeSupport::getKernel (SgScopeStatement * scope,
     std::string const & kernelName)
 {

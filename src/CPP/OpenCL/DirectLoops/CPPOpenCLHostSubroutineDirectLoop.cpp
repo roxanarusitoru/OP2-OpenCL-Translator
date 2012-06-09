@@ -371,9 +371,10 @@ CPPOpenCLHostSubroutineDirectLoop::CPPOpenCLHostSubroutineDirectLoop (
     CPPOpenCLKernelSubroutine * calleeSubroutine,
     CPPParallelLoop * parallelLoop, CPPModuleDeclarations * moduleDeclarations,
     CPPUserSubroutine * userSubroutine,
-    CPPOpenCLConstantDeclarations * constantDeclarations) :
+    CPPOpenCLConstantDeclarations * constantDeclarations,
+    CPPProgramDeclarationsAndDefinitions * declarations) :
   CPPOpenCLHostSubroutine (moduleScope, calleeSubroutine, parallelLoop,
-      moduleDeclarations, userSubroutine, constantDeclarations)
+      moduleDeclarations, userSubroutine, constantDeclarations, declarations)
 {
   Debug::getInstance ()->debugMessage (
       "Creating host subroutine of direct loop", Debug::CONSTRUCTOR_LEVEL,

@@ -279,6 +279,10 @@ namespace OpenCL
     SgVarRefExp * cpuTime, SgVarRefExp * wallTime);
 
     SgFunctionCallExp *
+    getOpTimingReallocCallStatement (SgScopeStatement * scope,
+    SgExpression * index);
+
+    SgFunctionCallExp *
     getKernel (SgScopeStatement * scope, std::string const & kernelName);
 
     SgFunctionCallExp *

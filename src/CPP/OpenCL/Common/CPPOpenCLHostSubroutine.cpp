@@ -40,6 +40,7 @@
 #include "CompilerGeneratedNames.h"
 #include "OP2.h"
 #include "Exceptions.h"
+#include "CPPParallelLoop.h"
 
 void
 CPPOpenCLHostSubroutine::addTimingInitialDeclaration (
@@ -85,8 +86,8 @@ CPPOpenCLHostSubroutine::addTimingInitialDeclaration (
   
   variableDeclarations->add (wallT2, wallT2Declaration);
 
-  addTextForUnparser(scope, "op_timers(cpuT1, wallT1);",
-      AstUnparseAttribute::e_before);
+  addTextForUnparser(wallT2Declaration, "\nop_timers(&cpu_t1, &wall_t1);\n",
+      AstUnparseAttribute::e_after);
 
 /*  SgFunctionCallExp * opTimerInitialExp = 
       OpenCL::OP2RuntimeSupport::getOpTimerCallStatement (scope, 
@@ -108,6 +109,100 @@ CPPOpenCLHostSubroutine::addTimingInitialDeclaration (
 
   appendStatement (buildExprStatement (opTimerInitialExp), scope);*/
   
+}
+
+void
+CPPOpenCLHostSubroutine::addTimingFinalDeclaration (
+    SgScopeStatement * scope) {
+  using namespace SageInterface;
+  using namespace SageBuilder;
+  using namespace OP2VariableNames;
+  using std::string;
+  using std::map;
+  
+  Debug::getInstance ()->debugMessage (
+      "Adding final timing statements", Debug::FUNCTION_LEVEL,
+      __FILE__, __LINE__);
+
+  string const & kernelVariableName = parallelLoop->getUserSubroutineName ();
+
+  CPPProgramDeclarationsAndDefinitions * programDeclarations = 
+      constantDeclarations->getProgramDeclarations ();
+
+  int index = 0;
+  int found = 0;
+	for (map <string, ParallelLoop *>::const_iterator it =
+		 programDeclarations->firstParallelLoop (); it
+		 != programDeclarations->lastParallelLoop () && !found; ++it)
+  {
+    if (it->second->getUserSubroutineName ().compare (kernelVariableName) == 0) 
+    {
+      found = 1;
+    } 
+    else 
+    {
+      ++index;
+    }
+  }
+
+  char buffer[100];
+  sprintf(buffer, "%d", index);
+  Debug::getInstance ()->debugMessage (
+      buffer, Debug::FUNCTION_LEVEL, __FILE__, __LINE__);
+  
+  string opKernelsString = "OP_kernels[";
+  opKernelsString += buffer;
+  opKernelsString += "].name";
+
+  Debug::getInstance ()->debugMessage (
+      opKernelsString, Debug::FUNCTION_LEVEL, __FILE__, __LINE__);
+
+  SgExprStatement * opKernelsName = buildAssignStatement (
+      buildOpaqueVarRefExp (opKernelsString, scope), 
+      buildOpaqueVarRefExp (getUserSubroutineName (), scope));
+
+  appendStatement (opKernelsName, scope);
+   
+  opKernelsString = "OP_kernels[";
+  opKernelsString += buffer;
+  opKernelsString += "].count";
+
+  SgAddOp * incrementByOne = buildAddOp (
+      buildOpaqueVarRefExp (opKernelsString, scope), 
+      buildIntVal(1));
+
+  SgExprStatement * opKernelsCount = buildAssignStatement (
+      buildOpaqueVarRefExp (opKernelsString, scope), 
+      incrementByOne);
+      
+  appendStatement (opKernelsCount, scope);
+
+  SgSubtractOp * subtractWallTime = buildSubtractOp (
+      variableDeclarations->getReference ("wall_t2"),
+      variableDeclarations->getReference ("wall_t1"));
+ 
+  opKernelsString = "OP_kernels[";
+  opKernelsString += buffer;
+  opKernelsString += "].time";
+
+  SgAddOp * addToTime = buildAddOp (
+      buildOpaqueVarRefExp (opKernelsString, scope),
+      subtractWallTime);
+
+  SgExprStatement * opKernelsTime =  buildAssignStatement (
+      buildOpaqueVarRefExp (opKernelsString, scope),
+      addToTime);
+
+  addTextForUnparser(opKernelsName, "\nop_timers(&cpu_t2, &wall_t2);\n",
+      AstUnparseAttribute::e_after); 
+
+  addTextForUnparser(opKernelsName, "\nop_timing_realloc(0);\n",
+      AstUnparseAttribute::e_before);
+
+  for (unsigned int i = 1; i <= parallelLoop->getNumberOfOpDatArgumentGroups (); ++i) 
+  {
+    
+  } 
 }
 
 void 
@@ -959,7 +1054,8 @@ CPPOpenCLHostSubroutine::CPPOpenCLHostSubroutine (
     CPPOpenCLKernelSubroutine * calleeSubroutine,
     CPPParallelLoop * parallelLoop, CPPModuleDeclarations * moduleDeclarations,
     CPPUserSubroutine * userSubroutine,
-    CPPOpenCLConstantDeclarations * constantDeclarations) :
+    CPPOpenCLConstantDeclarations * constantDeclarations,
+    CPPProgramDeclarationsAndDefinitions * declarations) :
   CPPHostSubroutine (moduleScope, calleeSubroutine, parallelLoop),
       moduleDeclarations (moduleDeclarations), userSubroutine (userSubroutine),
       constantDeclarations (constantDeclarations)

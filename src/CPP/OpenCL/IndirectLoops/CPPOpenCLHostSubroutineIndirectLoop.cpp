@@ -563,6 +563,8 @@ CPPOpenCLHostSubroutineIndirectLoop::createPlanFunctionExecutionStatements ()
 
   appendStatement (forLoopStatement, block);
 
+  addTimingFinalDeclaration(block);
+  
   return block;
 }
 
@@ -697,9 +699,10 @@ CPPOpenCLHostSubroutineIndirectLoop::CPPOpenCLHostSubroutineIndirectLoop (
     CPPOpenCLKernelSubroutine * kernelSubroutine,
     CPPParallelLoop * parallelLoop, CPPModuleDeclarations * moduleDeclarations,
     CPPUserSubroutine * userSubroutine,
-    CPPOpenCLConstantDeclarations * constantDeclarations) :
+    CPPOpenCLConstantDeclarations * constantDeclarations,
+    CPPProgramDeclarationsAndDefinitions * declarations) :
   CPPOpenCLHostSubroutine (moduleScope, kernelSubroutine, parallelLoop,
-      moduleDeclarations, userSubroutine, constantDeclarations)
+      moduleDeclarations, userSubroutine, constantDeclarations, declarations)
 {
   Debug::getInstance ()->debugMessage (
       "Creating OpenCL host subroutine for indirect loop",

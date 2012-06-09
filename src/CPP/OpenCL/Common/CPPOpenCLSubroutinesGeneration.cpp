@@ -131,7 +131,7 @@ CPPOpenCLSubroutinesGeneration::createSubroutines ()
       hostSubroutines[userSubroutineName]
           = new CPPOpenCLHostSubroutineDirectLoop (moduleScope,
               kernelSubroutine, parallelLoop, moduleDeclarations,
-              userDeviceSubroutine, constantDeclarations);
+              userDeviceSubroutine, constantDeclarations, declarations);
     }
     else
     {
@@ -142,7 +142,7 @@ CPPOpenCLSubroutinesGeneration::createSubroutines ()
       hostSubroutines[userSubroutineName]
           = new CPPOpenCLHostSubroutineIndirectLoop (moduleScope,
               kernelSubroutine, parallelLoop, moduleDeclarations,
-              userDeviceSubroutine, constantDeclarations);
+              userDeviceSubroutine, constantDeclarations, declarations);
     }
   }
 }
@@ -173,7 +173,7 @@ CPPOpenCLSubroutinesGeneration::addHeaderIncludes ()
   
   addTextForUnparser (moduleScope, "\n#define ROUND_UP(bytes) (((bytes) + 15) & ~15)\n\n#define MIN(a,b) ((a<b) ? (a) : (b))\n\n#define ZERO_float 0.0f\n",
     AstUnparseAttribute::e_after);
-  addTextForUnparser (moduleScope, "\n#include <CL/cl.h>\n",
+  addTextForUnparser (moduleScope, "\n#include <CL/cl.h>\n\n#include \"op_opencl_rt_support.h\"\n",
       //AstUnparseAttribute::e_after);
       AstUnparseAttribute::e_before);
 
