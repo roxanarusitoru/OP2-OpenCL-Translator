@@ -60,6 +60,9 @@ class CPPOpenCLHostSubroutine: public CPPHostSubroutine
   protected:
 
     void
+    addHashDefs (SgScopeStatement * scope);    
+
+    void
     addTimingInitialDeclaration (SgScopeStatement * scope);
 
     void

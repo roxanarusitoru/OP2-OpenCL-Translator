@@ -44,6 +44,80 @@
 #include "PlanFunctionNames.h"
 
 void
+CPPOpenCLHostSubroutine::addHashDefs (
+    SgScopeStatement * scope)
+{
+  using namespace SageBuilder;
+  using namespace SageInterface;
+  using namespace OP2VariableNames;
+  using std::string;
+  using std::map;
+
+  string const & kernelVariableName = parallelLoop->getUserSubroutineName ();
+
+  CPPProgramDeclarationsAndDefinitions * programDeclarations = 
+      constantDeclarations->getProgramDeclarations ();
+
+  int index = 0;
+  int found = 0;
+	for (map <string, ParallelLoop *>::const_iterator it =
+		 programDeclarations->firstParallelLoop (); it
+		 != programDeclarations->lastParallelLoop () && !found; ++it)
+  {
+    if (it->second->getUserSubroutineName ().compare (kernelVariableName) == 0) 
+    {
+      found = 1;
+    } 
+    else 
+    {
+      ++index;
+    }
+  }
+
+  char buffer[100];
+  sprintf(buffer, "%d", index);
+ 
+  string opBlockSizeString = "OP_BLOCK_SIZE_";
+  opBlockSizeString += buffer;
+
+  SgExprStatement * assignBlkSize = buildAssignStatement (
+      variableDeclarations->getReference (
+          getBlockSizeVariableName (kernelVariableName)),
+      buildOpaqueVarRefExp (opBlockSizeString, scope));
+
+  appendStatement (assignBlkSize, scope); 
+
+  string temp = "\n#ifdef " + opBlockSizeString + "\n";  
+
+  addTextForUnparser (assignBlkSize, temp, 
+      AstUnparseAttribute::e_before);
+
+  addTextForUnparser (assignBlkSize, "\n#endif\n",
+      AstUnparseAttribute::e_after);
+
+  if (!parallelLoop->isDirectLoop ()) 
+  {
+    string opPartSizeString = "OP_PART_SIZE_";
+    opPartSizeString += buffer;
+
+    SgExprStatement * assignPartSize = buildAssignStatement (
+        variableDeclarations->getReference (
+            getPartitionSizeVariableName (kernelVariableName)),
+        buildOpaqueVarRefExp (opPartSizeString, scope));
+
+    appendStatement (assignPartSize, scope);
+
+    temp = "\n#ifdef " + opPartSizeString + "\n";
+  
+    addTextForUnparser (assignPartSize, temp, 
+      AstUnparseAttribute::e_before);
+  
+    addTextForUnparser (assignPartSize, "\n#endif\n",
+        AstUnparseAttribute::e_after);
+  }
+}
+
+void
 CPPOpenCLHostSubroutine::addTimingInitialDeclaration (
     SgScopeStatement * scope)
 {
@@ -1084,6 +1158,8 @@ CPPOpenCLHostSubroutine::createOpenCLConfigurationLaunchDeclarations ()
   Debug::getInstance ()->debugMessage (
       "Creating OpenCL configuration launch local variable declarations",
       Debug::FUNCTION_LEVEL, __FILE__, __LINE__);
+
+  addHashDefs (subroutineScope);
 
   variableDeclarations->add (OpenCL::blocksPerGrid,
       RoseStatementsAndExpressionsBuilder::appendVariableDeclaration (
