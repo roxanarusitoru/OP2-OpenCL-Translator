@@ -41,6 +41,7 @@
 #include "OP2.h"
 #include "Exceptions.h"
 #include "CPPParallelLoop.h"
+#include "PlanFunctionNames.h"
 
 void
 CPPOpenCLHostSubroutine::addTimingInitialDeclaration (
@@ -117,6 +118,7 @@ CPPOpenCLHostSubroutine::addTimingFinalDeclaration (
   using namespace SageInterface;
   using namespace SageBuilder;
   using namespace OP2VariableNames;
+  using namespace OP2::RunTimeVariableNames;
   using std::string;
   using std::map;
   
@@ -193,15 +195,85 @@ CPPOpenCLHostSubroutine::addTimingFinalDeclaration (
       buildOpaqueVarRefExp (opKernelsString, scope),
       addToTime);
 
+  appendStatement (opKernelsTime, scope);
+
   addTextForUnparser(opKernelsName, "\nop_timers(&cpu_t2, &wall_t2);\n",
       AstUnparseAttribute::e_after); 
 
-  addTextForUnparser(opKernelsName, "\nop_timing_realloc(0);\n",
+  string opTimingRealloc = "\nop_timing_realloc(";
+  opTimingRealloc += buffer;
+  opTimingRealloc += ");\n";
+
+  addTextForUnparser(opKernelsName, opTimingRealloc,
       AstUnparseAttribute::e_before);
 
+  opKernelsString = "OP_kernels[";
+  opKernelsString += buffer;
+  opKernelsString += "].transfer";
+
+  if (parallelLoop->isDirectLoop ()) 
+  {
   for (unsigned int i = 1; i <= parallelLoop->getNumberOfOpDatArgumentGroups (); ++i) 
   {
+    if (parallelLoop->isDirect (i)) 
+    {
+    float accessTypeNoTransfers = 1.0;
     
+    if (parallelLoop->isReadAndWritten (i))
+    {
+      accessTypeNoTransfers = 2.0;
+    }  
+ 
+    SgMultiplyOp * transfer = buildMultiplyOp (
+        buildCastExp (
+            buildArrowExp (
+                buildOpaqueVarRefExp (getOpSetName (), scope), 
+                buildOpaqueVarRefExp (OP2::RunTimeVariableNames::size, scope)), 
+                  buildFloatType ()), 
+        buildDotExp (variableDeclarations->getReference (getOpDatName (i)),
+            buildOpaqueVarRefExp (OP2::RunTimeVariableNames::size, scope)));
+
+    SgMultiplyOp * timesTransfer = buildMultiplyOp (
+        transfer,
+        buildFloatVal (accessTypeNoTransfers));
+
+    SgAddOp * addToTransfer = buildAddOp (
+        buildOpaqueVarRefExp (opKernelsString, scope),
+        timesTransfer);
+
+    SgExprStatement * opKernelsDat = buildAssignStatement (
+        buildOpaqueVarRefExp (opKernelsString, scope),
+        addToTransfer);
+
+    appendStatement (opKernelsDat, scope);
+    }
+  }
+  } 
+  else 
+  {
+    using namespace PlanFunctionVariableNames;
+  
+    SgAddOp * transfer1 = buildAddOp (
+        buildOpaqueVarRefExp (opKernelsString, scope),
+        buildArrowExp (variableDeclarations->getReference (planRet),
+            buildOpaqueVarRefExp ("transfer", scope)));
+    
+    SgExprStatement * opKernelsTransfer1 = buildAssignStatement (
+        buildOpaqueVarRefExp (opKernelsString, scope),
+        transfer1);
+
+    appendStatement (opKernelsTransfer1, scope);
+  
+    SgAddOp * transfer2 = buildAddOp (
+        buildOpaqueVarRefExp (opKernelsString, scope),
+        buildArrowExp (variableDeclarations->getReference (planRet),
+            buildOpaqueVarRefExp ("transfer2", scope)));
+  
+    SgExprStatement * opKernelsTransfer2 = buildAssignStatement (
+        buildOpaqueVarRefExp (opKernelsString, scope),
+        transfer2);
+    
+    appendStatement (opKernelsTransfer2, scope);
   } 
 }
 
