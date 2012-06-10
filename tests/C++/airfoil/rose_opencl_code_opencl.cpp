@@ -11,12 +11,15 @@ extern float gm1;
 extern float mach;
 extern float qinf[4UL];
 int threadsPerBlockSize_adt_calc = 512;
-int setPartitionSize_adt_calc = 0;
+int setPartitionSize_adt_calc = 512;
 int threadsPerBlockSize_bres_calc = 512;
-int setPartitionSize_bres_calc = 0;
+int setPartitionSize_bres_calc = 512;
 int threadsPerBlockSize_res_calc = 512;
-int setPartitionSize_res_calc = 0;
+int setPartitionSize_res_calc = 512;
 int threadsPerBlockSize_save_soln = 512;
+#ifdef OP_WARPSIZE_0
+#define OP_WARPSIZE OP_WARPSIZE_0
+#endif
 int threadsPerBlockSize_update = 512;
 
 __kernel void ReductionFloat4(__global float *volatile reductionResult,__private float inputValue,__private int reductionOperation,__local float *sharedFloat4)
@@ -166,6 +169,12 @@ __kernel void adt_calc_kernel(__global float *opDat1,__global float *opDat5,__gl
 
 void adt_calc_host(const char *userSubroutine,op_set set,op_arg opDat1,op_arg opDat2,op_arg opDat3,op_arg opDat4,op_arg opDat5,op_arg opDat6)
 {
+#ifdef OP_BLOCK_SIZE_0
+  threadsPerBlockSize_adt_calc = OP_BLOCK_SIZE_0;
+#endif
+#ifdef OP_PART_SIZE_0
+  setPartitionSize_adt_calc = OP_PART_SIZE_0;
+#endif
   size_t blocksPerGrid;
   size_t threadsPerBlock;
   size_t totalThreadNumber;
@@ -240,6 +249,9 @@ op_timers(&cpu_t2, &wall_t2);
 op_timing_realloc(0);
   OP_kernels[0].name = userSubroutine;
   OP_kernels[0].count = OP_kernels[0].count + 1;
+  OP_kernels[0].time = OP_kernels[0].time + (wall_t2 - wall_t1);
+  OP_kernels[0].transfer = OP_kernels[0].transfer + planRet -> transfer;
+  OP_kernels[0].transfer = OP_kernels[0].transfer + planRet -> transfer2;
 }
 
 inline void bres_calc_modified(__local float *x1,__local float *x2,__local float *q1,__local float *adt1,float *res1,__global int *bound,__constant float *gm1,__constant float  *qinf,__constant float *eps)
@@ -366,6 +378,12 @@ __kernel void bres_calc_kernel(__global float *opDat1,__global float *opDat3,__g
 
 void bres_calc_host(const char *userSubroutine,op_set set,op_arg opDat1,op_arg opDat2,op_arg opDat3,op_arg opDat4,op_arg opDat5,op_arg opDat6)
 {
+#ifdef OP_BLOCK_SIZE_1
+  threadsPerBlockSize_bres_calc = OP_BLOCK_SIZE_1;
+#endif
+#ifdef OP_PART_SIZE_1
+  setPartitionSize_bres_calc = OP_PART_SIZE_1;
+#endif
   size_t blocksPerGrid;
   size_t threadsPerBlock;
   size_t totalThreadNumber;
@@ -443,9 +461,12 @@ op_timers(&cpu_t1, &wall_t1);
     blockOffset += blocksPerGrid;
   }
 op_timers(&cpu_t2, &wall_t2);
-op_timing_realloc(0);
+op_timing_realloc(1);
   OP_kernels[1].name = userSubroutine;
   OP_kernels[1].count = OP_kernels[1].count + 1;
+  OP_kernels[1].time = OP_kernels[1].time + (wall_t2 - wall_t1);
+  OP_kernels[1].transfer = OP_kernels[1].transfer + planRet -> transfer;
+  OP_kernels[1].transfer = OP_kernels[1].transfer + planRet -> transfer2;
 }
 
 inline void res_calc_modified(__local float *x1,__local float *x2,__local float *q1,__local float *q2,__local float *adt1,__local float *adt2,float *res1,float *res2,__constant float *gm1,__constant float *eps)
@@ -576,6 +597,12 @@ __kernel void res_calc_kernel(__global float *opDat1,__global float *opDat3,__gl
 
 void res_calc_host(const char *userSubroutine,op_set set,op_arg opDat1,op_arg opDat2,op_arg opDat3,op_arg opDat4,op_arg opDat5,op_arg opDat6,op_arg opDat7,op_arg opDat8)
 {
+#ifdef OP_BLOCK_SIZE_2
+  threadsPerBlockSize_res_calc = OP_BLOCK_SIZE_2;
+#endif
+#ifdef OP_PART_SIZE_2
+  setPartitionSize_res_calc = OP_PART_SIZE_2;
+#endif
   size_t blocksPerGrid;
   size_t threadsPerBlock;
   size_t totalThreadNumber;
@@ -656,9 +683,12 @@ op_timers(&cpu_t1, &wall_t1);
     blockOffset += blocksPerGrid;
   }
 op_timers(&cpu_t2, &wall_t2);
-op_timing_realloc(0);
+op_timing_realloc(2);
   OP_kernels[2].name = userSubroutine;
   OP_kernels[2].count = OP_kernels[2].count + 1;
+  OP_kernels[2].time = OP_kernels[2].time + (wall_t2 - wall_t1);
+  OP_kernels[2].transfer = OP_kernels[2].transfer + planRet -> transfer;
+  OP_kernels[2].transfer = OP_kernels[2].transfer + planRet -> transfer2;
 }
 
 inline void save_soln_modified(float *q,float *qold)
@@ -700,6 +730,9 @@ __kernel void save_soln_kernel(__global float *opDat1,__global float *opDat2,int
 
 void save_soln_host(const char *userSubroutine,op_set set,op_arg opDat1,op_arg opDat2)
 {
+#ifdef OP_BLOCK_SIZE_3
+  threadsPerBlockSize_save_soln = OP_BLOCK_SIZE_3;
+#endif
   size_t blocksPerGrid;
   size_t threadsPerBlock;
   size_t totalThreadNumber;
@@ -708,6 +741,11 @@ void save_soln_host(const char *userSubroutine,op_set set,op_arg opDat1,op_arg o
   cl_event event;
   cl_kernel kernelPointer;
   int sharedMemoryOffset;
+  double cpu_t1;
+  double cpu_t2;
+  double wall_t1;
+op_timers(&cpu_t1, &wall_t1);
+  double wall_t2;
   blocksPerGrid = 200;
   threadsPerBlock = threadsPerBlockSize_save_soln;
   totalThreadNumber = threadsPerBlock * blocksPerGrid;
@@ -727,6 +765,13 @@ void save_soln_host(const char *userSubroutine,op_set set,op_arg opDat1,op_arg o
   assert_m(errorCode == CL_SUCCESS,"Error executing OpenCL kernel");
   errorCode = clFinish(cqCommandQueue);
   assert_m(errorCode == CL_SUCCESS,"Error completing device command queue");
+op_timers(&cpu_t2, &wall_t2);
+op_timing_realloc(3);
+  OP_kernels[3].name = userSubroutine;
+  OP_kernels[3].count = OP_kernels[3].count + 1;
+  OP_kernels[3].time = OP_kernels[3].time + (wall_t2 - wall_t1);
+  OP_kernels[3].transfer = OP_kernels[3].transfer + ((float )(set -> size)) * opDat1.size * 1.00000F;
+  OP_kernels[3].transfer = OP_kernels[3].transfer + ((float )(set -> size)) * opDat2.size * 1.00000F;
 }
 
 inline void update_modified(float *qold,float *q,float *res,__global float *adt,float *rms)
@@ -796,6 +841,9 @@ __kernel void update_kernel(__global float *opDat1,__global float *opDat2,__glob
 
 void update_host(const char *userSubroutine,op_set set,op_arg opDat1,op_arg opDat2,op_arg opDat3,op_arg opDat4,op_arg opDat5)
 {
+#ifdef OP_BLOCK_SIZE_4
+  threadsPerBlockSize_update = OP_BLOCK_SIZE_4;
+#endif
   size_t blocksPerGrid;
   size_t threadsPerBlock;
   size_t totalThreadNumber;
@@ -809,6 +857,11 @@ void update_host(const char *userSubroutine,op_set set,op_arg opDat1,op_arg opDa
   int reductionBytes;
   int reductionSharedMemorySize;
   float *reductionArrayHost5;
+  double cpu_t1;
+  double cpu_t2;
+  double wall_t1;
+op_timers(&cpu_t1, &wall_t1);
+  double wall_t2;
   blocksPerGrid = 200;
   threadsPerBlock = threadsPerBlockSize_update;
   totalThreadNumber = threadsPerBlock * blocksPerGrid;
@@ -855,4 +908,13 @@ void update_host(const char *userSubroutine,op_set set,op_arg opDat1,op_arg opDa
       reductionArrayHost5[i2] += ((float *)opDat5.data)[i2 + i1 * 1];
     }
   }
+op_timers(&cpu_t2, &wall_t2);
+op_timing_realloc(4);
+  OP_kernels[4].name = userSubroutine;
+  OP_kernels[4].count = OP_kernels[4].count + 1;
+  OP_kernels[4].time = OP_kernels[4].time + (wall_t2 - wall_t1);
+  OP_kernels[4].transfer = OP_kernels[4].transfer + ((float )(set -> size)) * opDat1.size * 1.00000F;
+  OP_kernels[4].transfer = OP_kernels[4].transfer + ((float )(set -> size)) * opDat2.size * 1.00000F;
+  OP_kernels[4].transfer = OP_kernels[4].transfer + ((float )(set -> size)) * opDat3.size * 2.00000F;
+  OP_kernels[4].transfer = OP_kernels[4].transfer + ((float )(set -> size)) * opDat4.size * 1.00000F;
 }
