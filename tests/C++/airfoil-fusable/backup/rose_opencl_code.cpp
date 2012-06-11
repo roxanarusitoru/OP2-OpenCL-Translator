@@ -10,14 +10,15 @@ extern float gam;
 extern float gm1;
 extern float mach;
 extern float qinf[4UL];
+int threadsPerBlockSize_adt_calc1 = 512;
+int setPartitionSize_adt_calc1 = 512;
+int threadsPerBlockSize_adt_calc2 = 512;
+int setPartitionSize_adt_calc2 = 512;
 int threadsPerBlockSize_bres_calc = 512;
 int setPartitionSize_bres_calc = 512;
-int threadsPerBlockSize_fusedOne = 512;
-int setPartitionSize_fusedOne = 512;
-int threadsPerBlockSize_fusedTwo = 512;
-int setPartitionSize_fusedTwo = 512;
 int threadsPerBlockSize_res_calc = 512;
 int setPartitionSize_res_calc = 512;
+int threadsPerBlockSize_save_soln = 512;
 #ifdef OP_WARPSIZE_0
 #define OP_WARPSIZE OP_WARPSIZE_0
 #endif
@@ -110,6 +111,292 @@ __kernel void ReductionFloat4(__global float *volatile reductionResult,__private
       }
     }
   }
+}
+
+inline void adt_calc1_modified(__local float *x1,__local float *x2,__local float *x3,__local float *x4,__global float *q,__global float *adt,__constant float *gam,__constant float *gm1,__constant float *cfl)
+{
+  float dx;
+  float dy;
+  float ri;
+  float u;
+  float v;
+  float c;
+  ri = (1.0f / q[0]);
+  u = (ri * q[1]);
+  v = (ri * q[2]);
+  c = (sqrt((( *gam *  *gm1) * ((ri * q[3]) - (0.5f * ((u * u) + (v * v)))))));
+  dx = (x2[0] - x1[0]);
+  dy = (x2[1] - x1[1]);
+   *adt = (fabs(((u * dy) - (v * dx))) + (c * sqrt(((dx * dx) + (dy * dy)))));
+  dx = (x3[0] - x2[0]);
+  dy = (x3[1] - x2[1]);
+   *adt += (fabs(((u * dy) - (v * dx))) + (c * sqrt(((dx * dx) + (dy * dy)))));
+  dx = (x4[0] - x3[0]);
+  dy = (x4[1] - x3[1]);
+   *adt += (fabs(((u * dy) - (v * dx))) + (c * sqrt(((dx * dx) + (dy * dy)))));
+  dx = (x1[0] - x4[0]);
+  dy = (x1[1] - x4[1]);
+   *adt += (fabs(((u * dy) - (v * dx))) + (c * sqrt(((dx * dx) + (dy * dy)))));
+   *adt = ( *adt /  *cfl);
+}
+
+__kernel void adt_calc1_kernel(__global float *opDat1,__global float *opDat5,__global float *opDat6,__global int *ind_maps1,__global short *mappingArray1,__global short *mappingArray2,__global short *mappingArray3,__global short *mappingArray4,__global int *pindSizes,__global int *pindOffs,__global int *pblkMap,__global int *poffset,__global int *pnelems,__global int *pnthrcol,__global int *pthrcol,__private int blockOffset,__local float *shared_adt_calc1,__constant float *gam,__constant float *gm1,__constant float *cfl)
+{
+  __local int sharedMemoryOffset;
+  __local int numberOfActiveThreads;
+  int nbytes;
+  int blockID;
+  int i1;
+  __global  int* __local  opDat1IndirectionMap;
+  __local int opDat1SharedIndirectionSize;
+  __local  float * __local  opDat1SharedIndirection;
+  if (get_local_id(0) == 0) {
+    blockID = pblkMap[get_group_id(0) + blockOffset];
+    numberOfActiveThreads = pnelems[blockID];
+    sharedMemoryOffset = poffset[blockID];
+    opDat1SharedIndirectionSize = pindSizes[0 + blockID * 1];
+    opDat1IndirectionMap = ind_maps1 + pindOffs[0 + blockID * 1];
+    nbytes = 0;
+    opDat1SharedIndirection = &shared_adt_calc1[nbytes / sizeof(float )];
+  }
+  barrier(CLK_LOCAL_MEM_FENCE);
+  for (i1 = get_local_id(0); i1 < opDat1SharedIndirectionSize * 2; i1 += get_local_size(0)) {
+    opDat1SharedIndirection[i1] = opDat1[i1 % 2 + opDat1IndirectionMap[i1 / 2] * 2];
+  }
+  barrier(CLK_LOCAL_MEM_FENCE);
+  for (i1 = get_local_id(0); i1 < numberOfActiveThreads; i1 += get_local_size(0)) {
+    adt_calc1_modified(opDat1SharedIndirection + mappingArray1[i1 + sharedMemoryOffset] * 2,opDat1SharedIndirection + mappingArray2[i1 + sharedMemoryOffset] * 2,opDat1SharedIndirection + mappingArray3[i1 + sharedMemoryOffset] * 2,opDat1SharedIndirection + mappingArray4[i1 + sharedMemoryOffset] * 2,opDat5 + (i1 + sharedMemoryOffset) * 4,opDat6 + (i1 + sharedMemoryOffset) * 1,gam,gm1,cfl);
+  }
+}
+
+void adt_calc1_host(const char *userSubroutine,op_set set,op_arg opDat1,op_arg opDat2,op_arg opDat3,op_arg opDat4,op_arg opDat5,op_arg opDat6)
+{
+#ifdef OP_BLOCK_SIZE_0
+  threadsPerBlockSize_adt_calc1 = OP_BLOCK_SIZE_0;
+#endif
+#ifdef OP_PART_SIZE_0
+  setPartitionSize_adt_calc1 = OP_PART_SIZE_0;
+#endif
+  size_t blocksPerGrid;
+  size_t threadsPerBlock;
+  size_t totalThreadNumber;
+  size_t dynamicSharedMemorySize;
+  cl_int errorCode;
+  cl_event event;
+  cl_kernel kernelPointer;
+  int i3;
+  op_arg opDatArray[6];
+  int indirectionDescriptorArray[6];
+  op_plan *planRet;
+  int blockOffset;
+  opDatArray[0] = opDat1;
+  opDatArray[1] = opDat2;
+  opDatArray[2] = opDat3;
+  opDatArray[3] = opDat4;
+  opDatArray[4] = opDat5;
+  opDatArray[5] = opDat6;
+  indirectionDescriptorArray[0] = 0;
+  indirectionDescriptorArray[1] = 0;
+  indirectionDescriptorArray[2] = 0;
+  indirectionDescriptorArray[3] = 0;
+  indirectionDescriptorArray[4] = -1;
+  indirectionDescriptorArray[5] = -1;
+  planRet = op_plan_get(userSubroutine,set,setPartitionSize_adt_calc1,6,opDatArray,1,indirectionDescriptorArray);
+  cl_mem gam_d;
+  gam_d = op_allocate_constant(&gam,sizeof(float ));
+  cl_mem gm1_d;
+  gm1_d = op_allocate_constant(&gm1,sizeof(float ));
+  cl_mem cfl_d;
+  cfl_d = op_allocate_constant(&cfl,sizeof(float ));
+  blockOffset = 0;
+  double cpu_t1;
+  double cpu_t2;
+  double wall_t1;
+op_timers(&cpu_t1, &wall_t1);
+  double wall_t2;
+  for (i3 = 0; i3 < planRet -> ncolors; ++i3) {
+    blocksPerGrid = planRet -> ncolblk[i3];
+    dynamicSharedMemorySize = planRet -> nshared;
+    threadsPerBlock = threadsPerBlockSize_adt_calc1;
+    totalThreadNumber = threadsPerBlock * blocksPerGrid;
+    kernelPointer = getKernel("adt_calc1_kernel");
+    errorCode = clSetKernelArg(kernelPointer,0,sizeof(cl_mem ),&opDat1.data_d);
+    errorCode = errorCode | clSetKernelArg(kernelPointer,1,sizeof(cl_mem ),&opDat5.data_d);
+    errorCode = errorCode | clSetKernelArg(kernelPointer,2,sizeof(cl_mem ),&opDat6.data_d);
+    errorCode = errorCode | clSetKernelArg(kernelPointer,3,sizeof(cl_mem ),&planRet -> ind_maps[0]);
+    errorCode = errorCode | clSetKernelArg(kernelPointer,4,sizeof(cl_mem ),&planRet -> loc_maps[0]);
+    errorCode = errorCode | clSetKernelArg(kernelPointer,5,sizeof(cl_mem ),&planRet -> loc_maps[1]);
+    errorCode = errorCode | clSetKernelArg(kernelPointer,6,sizeof(cl_mem ),&planRet -> loc_maps[2]);
+    errorCode = errorCode | clSetKernelArg(kernelPointer,7,sizeof(cl_mem ),&planRet -> loc_maps[3]);
+    errorCode = errorCode | clSetKernelArg(kernelPointer,8,sizeof(cl_mem ),&planRet -> ind_sizes);
+    errorCode = errorCode | clSetKernelArg(kernelPointer,9,sizeof(cl_mem ),&planRet -> ind_offs);
+    errorCode = errorCode | clSetKernelArg(kernelPointer,10,sizeof(cl_mem ),&planRet -> blkmap);
+    errorCode = errorCode | clSetKernelArg(kernelPointer,11,sizeof(cl_mem ),&planRet -> offset);
+    errorCode = errorCode | clSetKernelArg(kernelPointer,12,sizeof(cl_mem ),&planRet -> nelems);
+    errorCode = errorCode | clSetKernelArg(kernelPointer,13,sizeof(cl_mem ),&planRet -> nthrcol);
+    errorCode = errorCode | clSetKernelArg(kernelPointer,14,sizeof(cl_mem ),&planRet -> thrcol);
+    errorCode = errorCode | clSetKernelArg(kernelPointer,15,sizeof(int ),&blockOffset);
+    errorCode = errorCode | clSetKernelArg(kernelPointer,16,dynamicSharedMemorySize,NULL);
+    errorCode = errorCode | clSetKernelArg(kernelPointer,17,sizeof(cl_mem ),&gam_d);
+    errorCode = errorCode | clSetKernelArg(kernelPointer,18,sizeof(cl_mem ),&gm1_d);
+    errorCode = errorCode | clSetKernelArg(kernelPointer,19,sizeof(cl_mem ),&cfl_d);
+    assert_m(errorCode == CL_SUCCESS,"Error setting OpenCL kernel arguments");
+    errorCode = clEnqueueNDRangeKernel(cqCommandQueue,kernelPointer,1,NULL,&totalThreadNumber,&threadsPerBlock,0,NULL,&event);
+    assert_m(errorCode == CL_SUCCESS,"Error executing OpenCL kernel");
+    errorCode = clFinish(cqCommandQueue);
+    assert_m(errorCode == CL_SUCCESS,"Error completing device command queue");
+    blockOffset += blocksPerGrid;
+  }
+op_timers(&cpu_t2, &wall_t2);
+op_timing_realloc(0);
+  OP_kernels[0].name = userSubroutine;
+  OP_kernels[0].count = OP_kernels[0].count + 1;
+  OP_kernels[0].time = OP_kernels[0].time + (wall_t2 - wall_t1);
+  OP_kernels[0].transfer = OP_kernels[0].transfer + planRet -> transfer;
+  OP_kernels[0].transfer = OP_kernels[0].transfer + planRet -> transfer2;
+}
+
+inline void adt_calc2_modified(__local float *x1,__local float *x2,__local float *x3,__local float *x4,__global float *q,__global float *adt,__constant float *gam,__constant float *gm1,__constant float *cfl)
+{
+  float dx;
+  float dy;
+  float ri;
+  float u;
+  float v;
+  float c;
+  ri = (1.0f / q[0]);
+  u = (ri * q[1]);
+  v = (ri * q[2]);
+  c = (sqrt((( *gam *  *gm1) * ((ri * q[3]) - (0.5f * ((u * u) + (v * v)))))));
+  dx = (x2[0] - x1[0]);
+  dy = (x2[1] - x1[1]);
+   *adt = (fabs(((u * dy) - (v * dx))) + (c * sqrt(((dx * dx) + (dy * dy)))));
+  dx = (x3[0] - x2[0]);
+  dy = (x3[1] - x2[1]);
+   *adt += (fabs(((u * dy) - (v * dx))) + (c * sqrt(((dx * dx) + (dy * dy)))));
+  dx = (x4[0] - x3[0]);
+  dy = (x4[1] - x3[1]);
+   *adt += (fabs(((u * dy) - (v * dx))) + (c * sqrt(((dx * dx) + (dy * dy)))));
+  dx = (x1[0] - x4[0]);
+  dy = (x1[1] - x4[1]);
+   *adt += (fabs(((u * dy) - (v * dx))) + (c * sqrt(((dx * dx) + (dy * dy)))));
+   *adt = ( *adt /  *cfl);
+}
+
+__kernel void adt_calc2_kernel(__global float *opDat1,__global float *opDat5,__global float *opDat6,__global int *ind_maps1,__global short *mappingArray1,__global short *mappingArray2,__global short *mappingArray3,__global short *mappingArray4,__global int *pindSizes,__global int *pindOffs,__global int *pblkMap,__global int *poffset,__global int *pnelems,__global int *pnthrcol,__global int *pthrcol,__private int blockOffset,__local float *shared_adt_calc2,__constant float *gam,__constant float *gm1,__constant float *cfl)
+{
+  __local int sharedMemoryOffset;
+  __local int numberOfActiveThreads;
+  int nbytes;
+  int blockID;
+  int i1;
+  __global  int* __local  opDat1IndirectionMap;
+  __local int opDat1SharedIndirectionSize;
+  __local  float * __local  opDat1SharedIndirection;
+  if (get_local_id(0) == 0) {
+    blockID = pblkMap[get_group_id(0) + blockOffset];
+    numberOfActiveThreads = pnelems[blockID];
+    sharedMemoryOffset = poffset[blockID];
+    opDat1SharedIndirectionSize = pindSizes[0 + blockID * 1];
+    opDat1IndirectionMap = ind_maps1 + pindOffs[0 + blockID * 1];
+    nbytes = 0;
+    opDat1SharedIndirection = &shared_adt_calc2[nbytes / sizeof(float )];
+  }
+  barrier(CLK_LOCAL_MEM_FENCE);
+  for (i1 = get_local_id(0); i1 < opDat1SharedIndirectionSize * 2; i1 += get_local_size(0)) {
+    opDat1SharedIndirection[i1] = opDat1[i1 % 2 + opDat1IndirectionMap[i1 / 2] * 2];
+  }
+  barrier(CLK_LOCAL_MEM_FENCE);
+  for (i1 = get_local_id(0); i1 < numberOfActiveThreads; i1 += get_local_size(0)) {
+    adt_calc2_modified(opDat1SharedIndirection + mappingArray1[i1 + sharedMemoryOffset] * 2,opDat1SharedIndirection + mappingArray2[i1 + sharedMemoryOffset] * 2,opDat1SharedIndirection + mappingArray3[i1 + sharedMemoryOffset] * 2,opDat1SharedIndirection + mappingArray4[i1 + sharedMemoryOffset] * 2,opDat5 + (i1 + sharedMemoryOffset) * 4,opDat6 + (i1 + sharedMemoryOffset) * 1,gam,gm1,cfl);
+  }
+}
+
+void adt_calc2_host(const char *userSubroutine,op_set set,op_arg opDat1,op_arg opDat2,op_arg opDat3,op_arg opDat4,op_arg opDat5,op_arg opDat6)
+{
+#ifdef OP_BLOCK_SIZE_1
+  threadsPerBlockSize_adt_calc2 = OP_BLOCK_SIZE_1;
+#endif
+#ifdef OP_PART_SIZE_1
+  setPartitionSize_adt_calc2 = OP_PART_SIZE_1;
+#endif
+  size_t blocksPerGrid;
+  size_t threadsPerBlock;
+  size_t totalThreadNumber;
+  size_t dynamicSharedMemorySize;
+  cl_int errorCode;
+  cl_event event;
+  cl_kernel kernelPointer;
+  int i3;
+  op_arg opDatArray[6];
+  int indirectionDescriptorArray[6];
+  op_plan *planRet;
+  int blockOffset;
+  opDatArray[0] = opDat1;
+  opDatArray[1] = opDat2;
+  opDatArray[2] = opDat3;
+  opDatArray[3] = opDat4;
+  opDatArray[4] = opDat5;
+  opDatArray[5] = opDat6;
+  indirectionDescriptorArray[0] = 0;
+  indirectionDescriptorArray[1] = 0;
+  indirectionDescriptorArray[2] = 0;
+  indirectionDescriptorArray[3] = 0;
+  indirectionDescriptorArray[4] = -1;
+  indirectionDescriptorArray[5] = -1;
+  planRet = op_plan_get(userSubroutine,set,setPartitionSize_adt_calc2,6,opDatArray,1,indirectionDescriptorArray);
+  cl_mem gam_d;
+  gam_d = op_allocate_constant(&gam,sizeof(float ));
+  cl_mem gm1_d;
+  gm1_d = op_allocate_constant(&gm1,sizeof(float ));
+  cl_mem cfl_d;
+  cfl_d = op_allocate_constant(&cfl,sizeof(float ));
+  blockOffset = 0;
+  double cpu_t1;
+  double cpu_t2;
+  double wall_t1;
+op_timers(&cpu_t1, &wall_t1);
+  double wall_t2;
+  for (i3 = 0; i3 < planRet -> ncolors; ++i3) {
+    blocksPerGrid = planRet -> ncolblk[i3];
+    dynamicSharedMemorySize = planRet -> nshared;
+    threadsPerBlock = threadsPerBlockSize_adt_calc2;
+    totalThreadNumber = threadsPerBlock * blocksPerGrid;
+    kernelPointer = getKernel("adt_calc2_kernel");
+    errorCode = clSetKernelArg(kernelPointer,0,sizeof(cl_mem ),&opDat1.data_d);
+    errorCode = errorCode | clSetKernelArg(kernelPointer,1,sizeof(cl_mem ),&opDat5.data_d);
+    errorCode = errorCode | clSetKernelArg(kernelPointer,2,sizeof(cl_mem ),&opDat6.data_d);
+    errorCode = errorCode | clSetKernelArg(kernelPointer,3,sizeof(cl_mem ),&planRet -> ind_maps[0]);
+    errorCode = errorCode | clSetKernelArg(kernelPointer,4,sizeof(cl_mem ),&planRet -> loc_maps[0]);
+    errorCode = errorCode | clSetKernelArg(kernelPointer,5,sizeof(cl_mem ),&planRet -> loc_maps[1]);
+    errorCode = errorCode | clSetKernelArg(kernelPointer,6,sizeof(cl_mem ),&planRet -> loc_maps[2]);
+    errorCode = errorCode | clSetKernelArg(kernelPointer,7,sizeof(cl_mem ),&planRet -> loc_maps[3]);
+    errorCode = errorCode | clSetKernelArg(kernelPointer,8,sizeof(cl_mem ),&planRet -> ind_sizes);
+    errorCode = errorCode | clSetKernelArg(kernelPointer,9,sizeof(cl_mem ),&planRet -> ind_offs);
+    errorCode = errorCode | clSetKernelArg(kernelPointer,10,sizeof(cl_mem ),&planRet -> blkmap);
+    errorCode = errorCode | clSetKernelArg(kernelPointer,11,sizeof(cl_mem ),&planRet -> offset);
+    errorCode = errorCode | clSetKernelArg(kernelPointer,12,sizeof(cl_mem ),&planRet -> nelems);
+    errorCode = errorCode | clSetKernelArg(kernelPointer,13,sizeof(cl_mem ),&planRet -> nthrcol);
+    errorCode = errorCode | clSetKernelArg(kernelPointer,14,sizeof(cl_mem ),&planRet -> thrcol);
+    errorCode = errorCode | clSetKernelArg(kernelPointer,15,sizeof(int ),&blockOffset);
+    errorCode = errorCode | clSetKernelArg(kernelPointer,16,dynamicSharedMemorySize,NULL);
+    errorCode = errorCode | clSetKernelArg(kernelPointer,17,sizeof(cl_mem ),&gam_d);
+    errorCode = errorCode | clSetKernelArg(kernelPointer,18,sizeof(cl_mem ),&gm1_d);
+    errorCode = errorCode | clSetKernelArg(kernelPointer,19,sizeof(cl_mem ),&cfl_d);
+    assert_m(errorCode == CL_SUCCESS,"Error setting OpenCL kernel arguments");
+    errorCode = clEnqueueNDRangeKernel(cqCommandQueue,kernelPointer,1,NULL,&totalThreadNumber,&threadsPerBlock,0,NULL,&event);
+    assert_m(errorCode == CL_SUCCESS,"Error executing OpenCL kernel");
+    errorCode = clFinish(cqCommandQueue);
+    assert_m(errorCode == CL_SUCCESS,"Error completing device command queue");
+    blockOffset += blocksPerGrid;
+  }
+op_timers(&cpu_t2, &wall_t2);
+op_timing_realloc(1);
+  OP_kernels[1].name = userSubroutine;
+  OP_kernels[1].count = OP_kernels[1].count + 1;
+  OP_kernels[1].time = OP_kernels[1].time + (wall_t2 - wall_t1);
+  OP_kernels[1].transfer = OP_kernels[1].transfer + planRet -> transfer;
+  OP_kernels[1].transfer = OP_kernels[1].transfer + planRet -> transfer2;
 }
 
 inline void bres_calc_modified(__local float *x1,__local float *x2,__local float *q1,__local float *adt1,float *res1,__global int *bound,__constant float *gm1,__constant float  *qinf,__constant float *eps)
@@ -236,11 +523,11 @@ __kernel void bres_calc_kernel(__global float *opDat1,__global float *opDat3,__g
 
 void bres_calc_host(const char *userSubroutine,op_set set,op_arg opDat1,op_arg opDat2,op_arg opDat3,op_arg opDat4,op_arg opDat5,op_arg opDat6)
 {
-#ifdef OP_BLOCK_SIZE_0
-  threadsPerBlockSize_bres_calc = OP_BLOCK_SIZE_0;
+#ifdef OP_BLOCK_SIZE_2
+  threadsPerBlockSize_bres_calc = OP_BLOCK_SIZE_2;
 #endif
-#ifdef OP_PART_SIZE_0
-  setPartitionSize_bres_calc = OP_PART_SIZE_0;
+#ifdef OP_PART_SIZE_2
+  setPartitionSize_bres_calc = OP_PART_SIZE_2;
 #endif
   size_t blocksPerGrid;
   size_t threadsPerBlock;
@@ -319,351 +606,12 @@ op_timers(&cpu_t1, &wall_t1);
     blockOffset += blocksPerGrid;
   }
 op_timers(&cpu_t2, &wall_t2);
-op_timing_realloc(0);
-  OP_kernels[0].name = userSubroutine;
-  OP_kernels[0].count = OP_kernels[0].count + 1;
-  OP_kernels[0].time = OP_kernels[0].time + (wall_t2 - wall_t1);
-  OP_kernels[0].transfer = OP_kernels[0].transfer + planRet -> transfer;
-  OP_kernels[0].transfer = OP_kernels[0].transfer + planRet -> transfer2;
-}
-
-inline void fusedOne_modified(__global float *q,__global float *qold,__local float *x1,__local float *x2,__local float *x3,__local float *x4,__global float *adt,__constant float *gam,__constant float *gm1,__constant float *cfl)
-{
-  for (int n = 0; n < 4; n++) {
-    qold[n] = q[n];
-  }
-  float dx;
-  float dy;
-  float ri;
-  float u;
-  float v;
-  float c;
-  ri = (1.0f / q[0]);
-  u = (ri * q[1]);
-  v = (ri * q[2]);
-  c = (sqrt((( *gam *  *gm1) * ((ri * q[3]) - (0.5f * ((u * u) + (v * v)))))));
-  dx = (x2[0] - x1[0]);
-  dy = (x2[1] - x1[1]);
-   *adt = (fabs(((u * dy) - (v * dx))) + (c * sqrt(((dx * dx) + (dy * dy)))));
-  dx = (x3[0] - x2[0]);
-  dy = (x3[1] - x2[1]);
-   *adt += (fabs(((u * dy) - (v * dx))) + (c * sqrt(((dx * dx) + (dy * dy)))));
-  dx = (x4[0] - x3[0]);
-  dy = (x4[1] - x3[1]);
-   *adt += (fabs(((u * dy) - (v * dx))) + (c * sqrt(((dx * dx) + (dy * dy)))));
-  dx = (x1[0] - x4[0]);
-  dy = (x1[1] - x4[1]);
-   *adt += (fabs(((u * dy) - (v * dx))) + (c * sqrt(((dx * dx) + (dy * dy)))));
-   *adt = ( *adt /  *cfl);
-}
-
-__kernel void fusedOne_kernel(__global float *opDat1,__global float *opDat2,__global float *opDat3,__global float *opDat7,__global int *ind_maps3,__global short *mappingArray3,__global short *mappingArray4,__global short *mappingArray5,__global short *mappingArray6,__global int *pindSizes,__global int *pindOffs,__global int *pblkMap,__global int *poffset,__global int *pnelems,__global int *pnthrcol,__global int *pthrcol,__private int blockOffset,__local float *shared_fusedOne,__constant float *gam,__constant float *gm1,__constant float *cfl)
-{
-  __local int sharedMemoryOffset;
-  __local int numberOfActiveThreads;
-  int nbytes;
-  int blockID;
-  int i1;
-  __global  int* __local  opDat3IndirectionMap;
-  __local int opDat3SharedIndirectionSize;
-  __local  float * __local  opDat3SharedIndirection;
-  if (get_local_id(0) == 0) {
-    blockID = pblkMap[get_group_id(0) + blockOffset];
-    numberOfActiveThreads = pnelems[blockID];
-    sharedMemoryOffset = poffset[blockID];
-    opDat3SharedIndirectionSize = pindSizes[0 + blockID * 1];
-    opDat3IndirectionMap = ind_maps3 + pindOffs[0 + blockID * 1];
-    nbytes = 0;
-    opDat3SharedIndirection = &shared_fusedOne[nbytes / sizeof(float )];
-  }
-  barrier(CLK_LOCAL_MEM_FENCE);
-  for (i1 = get_local_id(0); i1 < opDat3SharedIndirectionSize * 2; i1 += get_local_size(0)) {
-    opDat3SharedIndirection[i1] = opDat3[i1 % 2 + opDat3IndirectionMap[i1 / 2] * 2];
-  }
-  barrier(CLK_LOCAL_MEM_FENCE);
-  for (i1 = get_local_id(0); i1 < numberOfActiveThreads; i1 += get_local_size(0)) {
-    fusedOne_modified(opDat1 + (i1 + sharedMemoryOffset) * 4,opDat2 + (i1 + sharedMemoryOffset) * 4,opDat3SharedIndirection + mappingArray3[i1 + sharedMemoryOffset] * 2,opDat3SharedIndirection + mappingArray4[i1 + sharedMemoryOffset] * 2,opDat3SharedIndirection + mappingArray5[i1 + sharedMemoryOffset] * 2,opDat3SharedIndirection + mappingArray6[i1 + sharedMemoryOffset] * 2,opDat7 + (i1 + sharedMemoryOffset) * 1,gam,gm1,cfl);
-  }
-}
-
-void fusedOne_host(const char *userSubroutine,op_set set,op_arg opDat1,op_arg opDat2,op_arg opDat3,op_arg opDat4,op_arg opDat5,op_arg opDat6,op_arg opDat7)
-{
-#ifdef OP_BLOCK_SIZE_1
-  threadsPerBlockSize_fusedOne = OP_BLOCK_SIZE_1;
-#endif
-#ifdef OP_PART_SIZE_1
-  setPartitionSize_fusedOne = OP_PART_SIZE_1;
-#endif
-  size_t blocksPerGrid;
-  size_t threadsPerBlock;
-  size_t totalThreadNumber;
-  size_t dynamicSharedMemorySize;
-  cl_int errorCode;
-  cl_event event;
-  cl_kernel kernelPointer;
-  int i3;
-  op_arg opDatArray[7];
-  int indirectionDescriptorArray[7];
-  op_plan *planRet;
-  int blockOffset;
-  opDatArray[0] = opDat1;
-  opDatArray[1] = opDat2;
-  opDatArray[2] = opDat3;
-  opDatArray[3] = opDat4;
-  opDatArray[4] = opDat5;
-  opDatArray[5] = opDat6;
-  opDatArray[6] = opDat7;
-  indirectionDescriptorArray[0] = -1;
-  indirectionDescriptorArray[1] = -1;
-  indirectionDescriptorArray[2] = 0;
-  indirectionDescriptorArray[3] = 0;
-  indirectionDescriptorArray[4] = 0;
-  indirectionDescriptorArray[5] = 0;
-  indirectionDescriptorArray[6] = -1;
-  planRet = op_plan_get(userSubroutine,set,setPartitionSize_fusedOne,7,opDatArray,1,indirectionDescriptorArray);
-  cl_mem gam_d;
-  gam_d = op_allocate_constant(&gam,sizeof(float ));
-  cl_mem gm1_d;
-  gm1_d = op_allocate_constant(&gm1,sizeof(float ));
-  cl_mem cfl_d;
-  cfl_d = op_allocate_constant(&cfl,sizeof(float ));
-  blockOffset = 0;
-  double cpu_t1;
-  double cpu_t2;
-  double wall_t1;
-op_timers(&cpu_t1, &wall_t1);
-  double wall_t2;
-  for (i3 = 0; i3 < planRet -> ncolors; ++i3) {
-    blocksPerGrid = planRet -> ncolblk[i3];
-    dynamicSharedMemorySize = planRet -> nshared;
-    threadsPerBlock = threadsPerBlockSize_fusedOne;
-    totalThreadNumber = threadsPerBlock * blocksPerGrid;
-    kernelPointer = getKernel("fusedOne_kernel");
-    errorCode = clSetKernelArg(kernelPointer,0,sizeof(cl_mem ),&opDat1.data_d);
-    errorCode = errorCode | clSetKernelArg(kernelPointer,1,sizeof(cl_mem ),&opDat2.data_d);
-    errorCode = errorCode | clSetKernelArg(kernelPointer,2,sizeof(cl_mem ),&opDat3.data_d);
-    errorCode = errorCode | clSetKernelArg(kernelPointer,3,sizeof(cl_mem ),&opDat7.data_d);
-    errorCode = errorCode | clSetKernelArg(kernelPointer,4,sizeof(cl_mem ),&planRet -> ind_maps[0]);
-    errorCode = errorCode | clSetKernelArg(kernelPointer,5,sizeof(cl_mem ),&planRet -> loc_maps[2]);
-    errorCode = errorCode | clSetKernelArg(kernelPointer,6,sizeof(cl_mem ),&planRet -> loc_maps[3]);
-    errorCode = errorCode | clSetKernelArg(kernelPointer,7,sizeof(cl_mem ),&planRet -> loc_maps[4]);
-    errorCode = errorCode | clSetKernelArg(kernelPointer,8,sizeof(cl_mem ),&planRet -> loc_maps[5]);
-    errorCode = errorCode | clSetKernelArg(kernelPointer,9,sizeof(cl_mem ),&planRet -> ind_sizes);
-    errorCode = errorCode | clSetKernelArg(kernelPointer,10,sizeof(cl_mem ),&planRet -> ind_offs);
-    errorCode = errorCode | clSetKernelArg(kernelPointer,11,sizeof(cl_mem ),&planRet -> blkmap);
-    errorCode = errorCode | clSetKernelArg(kernelPointer,12,sizeof(cl_mem ),&planRet -> offset);
-    errorCode = errorCode | clSetKernelArg(kernelPointer,13,sizeof(cl_mem ),&planRet -> nelems);
-    errorCode = errorCode | clSetKernelArg(kernelPointer,14,sizeof(cl_mem ),&planRet -> nthrcol);
-    errorCode = errorCode | clSetKernelArg(kernelPointer,15,sizeof(cl_mem ),&planRet -> thrcol);
-    errorCode = errorCode | clSetKernelArg(kernelPointer,16,sizeof(int ),&blockOffset);
-    errorCode = errorCode | clSetKernelArg(kernelPointer,17,dynamicSharedMemorySize,NULL);
-    errorCode = errorCode | clSetKernelArg(kernelPointer,18,sizeof(cl_mem ),&gam_d);
-    errorCode = errorCode | clSetKernelArg(kernelPointer,19,sizeof(cl_mem ),&gm1_d);
-    errorCode = errorCode | clSetKernelArg(kernelPointer,20,sizeof(cl_mem ),&cfl_d);
-    assert_m(errorCode == CL_SUCCESS,"Error setting OpenCL kernel arguments");
-    errorCode = clEnqueueNDRangeKernel(cqCommandQueue,kernelPointer,1,NULL,&totalThreadNumber,&threadsPerBlock,0,NULL,&event);
-    assert_m(errorCode == CL_SUCCESS,"Error executing OpenCL kernel");
-    errorCode = clFinish(cqCommandQueue);
-    assert_m(errorCode == CL_SUCCESS,"Error completing device command queue");
-    blockOffset += blocksPerGrid;
-  }
-op_timers(&cpu_t2, &wall_t2);
-op_timing_realloc(1);
-  OP_kernels[1].name = userSubroutine;
-  OP_kernels[1].count = OP_kernels[1].count + 1;
-  OP_kernels[1].time = OP_kernels[1].time + (wall_t2 - wall_t1);
-  OP_kernels[1].transfer = OP_kernels[1].transfer + planRet -> transfer;
-  OP_kernels[1].transfer = OP_kernels[1].transfer + planRet -> transfer2;
-}
-
-inline void fusedTwo_modified(__global float *qold,__global float *q,__global float *res,__global float *adt,float *rms,__local float *x1,__local float *x2,__local float *x3,__local float *x4,__constant float *gam,__constant float *gm1,__constant float *cfl)
-{
-  float del;
-  float adti;
-  float dx;
-  float dy;
-  float ri;
-  float u;
-  float v;
-  float c;
-  adti = (1.0f /  *adt);
-  for (int n = 0; n < 4; n++) {
-    del = (adti * res[n]);
-    q[n] = (qold[n] - del);
-    res[n] = 0.0f;
-     *rms += (del * del);
-  }
-  ri = (1.0f / q[0]);
-  u = (ri * q[1]);
-  v = (ri * q[2]);
-  c = (sqrt((( *gam *  *gm1) * ((ri * q[3]) - (0.5f * ((u * u) + (v * v)))))));
-  dx = (x2[0] - x1[0]);
-  dy = (x2[1] - x1[1]);
-   *adt = (fabs(((u * dy) - (v * dx))) + (c * sqrt(((dx * dx) + (dy * dy)))));
-  dx = (x3[0] - x2[0]);
-  dy = (x3[1] - x2[1]);
-   *adt += (fabs(((u * dy) - (v * dx))) + (c * sqrt(((dx * dx) + (dy * dy)))));
-  dx = (x4[0] - x3[0]);
-  dy = (x4[1] - x3[1]);
-   *adt += (fabs(((u * dy) - (v * dx))) + (c * sqrt(((dx * dx) + (dy * dy)))));
-  dx = (x1[0] - x4[0]);
-  dy = (x1[1] - x4[1]);
-   *adt += (fabs(((u * dy) - (v * dx))) + (c * sqrt(((dx * dx) + (dy * dy)))));
-   *adt = ( *adt /  *cfl);
-}
-
-__kernel void fusedTwo_kernel(__global float *opDat1,__global float *opDat2,__global float *opDat3,__global float *opDat4,__global float *reductionArrayDevice5,__global float *opDat6,__global int *ind_maps6,__global short *mappingArray6,__global short *mappingArray7,__global short *mappingArray8,__global short *mappingArray9,__global int *pindSizes,__global int *pindOffs,__global int *pblkMap,__global int *poffset,__global int *pnelems,__global int *pnthrcol,__global int *pthrcol,__private int blockOffset,__local float *shared_fusedTwo,__constant float *gam,__constant float *gm1,__constant float *cfl)
-{
-  __local int sharedMemoryOffset;
-  __local int numberOfActiveThreads;
-  int nbytes;
-  int blockID;
-  int i1;
-  float opDat5Local[1];
-  __local float reductionTemporaryArray5[2048];
-  __global  int* __local  opDat6IndirectionMap;
-  __local int opDat6SharedIndirectionSize;
-  __local  float * __local  opDat6SharedIndirection;
-  if (get_local_id(0) == 0) {
-    blockID = pblkMap[get_group_id(0) + blockOffset];
-    numberOfActiveThreads = pnelems[blockID];
-    sharedMemoryOffset = poffset[blockID];
-    opDat6SharedIndirectionSize = pindSizes[0 + blockID * 1];
-    opDat6IndirectionMap = ind_maps6 + pindOffs[0 + blockID * 1];
-    nbytes = 0;
-    opDat6SharedIndirection = &shared_fusedTwo[nbytes / sizeof(float )];
-  }
-  barrier(CLK_LOCAL_MEM_FENCE);
-  for (i1 = get_local_id(0); i1 < opDat6SharedIndirectionSize * 2; i1 += get_local_size(0)) {
-    opDat6SharedIndirection[i1] = opDat6[i1 % 2 + opDat6IndirectionMap[i1 / 2] * 2];
-  }
-  barrier(CLK_LOCAL_MEM_FENCE);
-  for (i1 = get_local_id(0); i1 < numberOfActiveThreads; i1 += get_local_size(0)) {
-    fusedTwo_modified(opDat1 + (i1 + sharedMemoryOffset) * 4,opDat2 + (i1 + sharedMemoryOffset) * 4,opDat3 + (i1 + sharedMemoryOffset) * 4,opDat4 + (i1 + sharedMemoryOffset) * 1,opDat5Local,opDat6SharedIndirection + mappingArray6[i1 + sharedMemoryOffset] * 2,opDat6SharedIndirection + mappingArray7[i1 + sharedMemoryOffset] * 2,opDat6SharedIndirection + mappingArray8[i1 + sharedMemoryOffset] * 2,opDat6SharedIndirection + mappingArray9[i1 + sharedMemoryOffset] * 2,gam,gm1,cfl);
-  }
-}
-
-void fusedTwo_host(const char *userSubroutine,op_set set,op_arg opDat1,op_arg opDat2,op_arg opDat3,op_arg opDat4,op_arg opDat5,op_arg opDat6,op_arg opDat7,op_arg opDat8,op_arg opDat9)
-{
-#ifdef OP_BLOCK_SIZE_2
-  threadsPerBlockSize_fusedTwo = OP_BLOCK_SIZE_2;
-#endif
-#ifdef OP_PART_SIZE_2
-  setPartitionSize_fusedTwo = OP_PART_SIZE_2;
-#endif
-  size_t blocksPerGrid;
-  size_t threadsPerBlock;
-  size_t totalThreadNumber;
-  size_t dynamicSharedMemorySize;
-  cl_int errorCode;
-  cl_event event;
-  cl_kernel kernelPointer;
-  int i3;
-  op_arg opDatArray[9];
-  int indirectionDescriptorArray[9];
-  op_plan *planRet;
-  int blockOffset;
-  int i1;
-  int i2;
-  int reductionBytes;
-  int reductionSharedMemorySize;
-  float *reductionArrayHost5;
-  reductionBytes = 0;
-  reductionSharedMemorySize = 0;
-  reductionArrayHost5 = ((float *)opDat5.data);
-  reductionBytes += ROUND_UP(blocksPerGrid * sizeof(float ) * 1);
-  reductionSharedMemorySize = MAX(reductionSharedMemorySize,sizeof(float ));
-  reallocReductArrays(reductionBytes);
-  reductionBytes = 0;
-  opDat5.data = OP_reduct_h + reductionBytes;
-  opDat5.data_d = ((char *)OP_reduct_d) + reductionBytes;
-  for (i1 = 0; i1 < blocksPerGrid; ++i1) {
-    for (i2 = 0; i2 < 1; ++i2) {
-      ((float *)opDat5.data)[i2 + i1 * 1] = 0.00000F;
-    }
-  }
-  reductionBytes += ROUND_UP(blocksPerGrid * sizeof(float ) * 1);
-  mvReductArraysToDevice(reductionBytes);
-  opDatArray[0] = opDat1;
-  opDatArray[1] = opDat2;
-  opDatArray[2] = opDat3;
-  opDatArray[3] = opDat4;
-  opDatArray[4] = opDat5;
-  opDatArray[5] = opDat6;
-  opDatArray[6] = opDat7;
-  opDatArray[7] = opDat8;
-  opDatArray[8] = opDat9;
-  indirectionDescriptorArray[0] = -1;
-  indirectionDescriptorArray[1] = -1;
-  indirectionDescriptorArray[2] = -1;
-  indirectionDescriptorArray[3] = -1;
-  indirectionDescriptorArray[4] = -1;
-  indirectionDescriptorArray[5] = 0;
-  indirectionDescriptorArray[6] = 0;
-  indirectionDescriptorArray[7] = 0;
-  indirectionDescriptorArray[8] = 0;
-  planRet = op_plan_get(userSubroutine,set,setPartitionSize_fusedTwo,9,opDatArray,1,indirectionDescriptorArray);
-  cl_mem gam_d;
-  gam_d = op_allocate_constant(&gam,sizeof(float ));
-  cl_mem gm1_d;
-  gm1_d = op_allocate_constant(&gm1,sizeof(float ));
-  cl_mem cfl_d;
-  cfl_d = op_allocate_constant(&cfl,sizeof(float ));
-  blockOffset = 0;
-  double cpu_t1;
-  double cpu_t2;
-  double wall_t1;
-op_timers(&cpu_t1, &wall_t1);
-  double wall_t2;
-  for (i3 = 0; i3 < planRet -> ncolors; ++i3) {
-    blocksPerGrid = planRet -> ncolblk[i3];
-    dynamicSharedMemorySize = planRet -> nshared;
-    threadsPerBlock = threadsPerBlockSize_fusedTwo;
-    totalThreadNumber = threadsPerBlock * blocksPerGrid;
-    kernelPointer = getKernel("fusedTwo_kernel");
-    errorCode = clSetKernelArg(kernelPointer,0,sizeof(cl_mem ),&opDat1.data_d);
-    errorCode = errorCode | clSetKernelArg(kernelPointer,1,sizeof(cl_mem ),&opDat2.data_d);
-    errorCode = errorCode | clSetKernelArg(kernelPointer,2,sizeof(cl_mem ),&opDat3.data_d);
-    errorCode = errorCode | clSetKernelArg(kernelPointer,3,sizeof(cl_mem ),&opDat4.data_d);
-    errorCode = errorCode | clSetKernelArg(kernelPointer,4,sizeof(cl_mem ),&opDat5.data_d);
-    errorCode = errorCode | clSetKernelArg(kernelPointer,5,sizeof(cl_mem ),&opDat6.data_d);
-    errorCode = errorCode | clSetKernelArg(kernelPointer,6,sizeof(cl_mem ),&planRet -> ind_maps[0]);
-    errorCode = errorCode | clSetKernelArg(kernelPointer,7,sizeof(cl_mem ),&planRet -> loc_maps[5]);
-    errorCode = errorCode | clSetKernelArg(kernelPointer,8,sizeof(cl_mem ),&planRet -> loc_maps[6]);
-    errorCode = errorCode | clSetKernelArg(kernelPointer,9,sizeof(cl_mem ),&planRet -> loc_maps[7]);
-    errorCode = errorCode | clSetKernelArg(kernelPointer,10,sizeof(cl_mem ),&planRet -> loc_maps[8]);
-    errorCode = errorCode | clSetKernelArg(kernelPointer,11,sizeof(cl_mem ),&planRet -> ind_sizes);
-    errorCode = errorCode | clSetKernelArg(kernelPointer,12,sizeof(cl_mem ),&planRet -> ind_offs);
-    errorCode = errorCode | clSetKernelArg(kernelPointer,13,sizeof(cl_mem ),&planRet -> blkmap);
-    errorCode = errorCode | clSetKernelArg(kernelPointer,14,sizeof(cl_mem ),&planRet -> offset);
-    errorCode = errorCode | clSetKernelArg(kernelPointer,15,sizeof(cl_mem ),&planRet -> nelems);
-    errorCode = errorCode | clSetKernelArg(kernelPointer,16,sizeof(cl_mem ),&planRet -> nthrcol);
-    errorCode = errorCode | clSetKernelArg(kernelPointer,17,sizeof(cl_mem ),&planRet -> thrcol);
-    errorCode = errorCode | clSetKernelArg(kernelPointer,18,sizeof(int ),&blockOffset);
-    errorCode = errorCode | clSetKernelArg(kernelPointer,19,dynamicSharedMemorySize,NULL);
-    errorCode = errorCode | clSetKernelArg(kernelPointer,20,sizeof(cl_mem ),&gam_d);
-    errorCode = errorCode | clSetKernelArg(kernelPointer,21,sizeof(cl_mem ),&gm1_d);
-    errorCode = errorCode | clSetKernelArg(kernelPointer,22,sizeof(cl_mem ),&cfl_d);
-    assert_m(errorCode == CL_SUCCESS,"Error setting OpenCL kernel arguments");
-    errorCode = clEnqueueNDRangeKernel(cqCommandQueue,kernelPointer,1,NULL,&totalThreadNumber,&threadsPerBlock,0,NULL,&event);
-    assert_m(errorCode == CL_SUCCESS,"Error executing OpenCL kernel");
-    errorCode = clFinish(cqCommandQueue);
-    assert_m(errorCode == CL_SUCCESS,"Error completing device command queue");
-    blockOffset += blocksPerGrid;
-  }
-op_timers(&cpu_t2, &wall_t2);
 op_timing_realloc(2);
   OP_kernels[2].name = userSubroutine;
   OP_kernels[2].count = OP_kernels[2].count + 1;
   OP_kernels[2].time = OP_kernels[2].time + (wall_t2 - wall_t1);
   OP_kernels[2].transfer = OP_kernels[2].transfer + planRet -> transfer;
   OP_kernels[2].transfer = OP_kernels[2].transfer + planRet -> transfer2;
-  mvReductArraysToHost(reductionBytes);
-  for (i1 = 0; i1 < blocksPerGrid; ++i1) {
-    for (i2 = 0; i2 < 1; ++i2) {
-      reductionArrayHost5[i2] += ((float *)opDat5.data)[i2 + i1 * 1];
-    }
-  }
 }
 
 inline void res_calc_modified(__local float *x1,__local float *x2,__local float *q1,__local float *q2,__local float *adt1,__local float *adt2,float *res1,float *res2,__constant float *gm1,__constant float *eps)
@@ -888,6 +836,89 @@ op_timing_realloc(3);
   OP_kernels[3].transfer = OP_kernels[3].transfer + planRet -> transfer2;
 }
 
+inline void save_soln_modified(float *q,float *qold)
+{
+  for (int n = 0; n < 4; n++) 
+    qold[n] = q[n];
+}
+
+__kernel void save_soln_kernel(__global float *opDat1,__global float *opDat2,int sharedMemoryOffset,int setSize,__local char *shared_save_soln)
+{
+  float opDat1Local[4];
+  float opDat2Local[4];
+  __local char *sharedPointer_save_soln;
+  int i1;
+  int i2;
+  int localOffset;
+  int numberOfActiveThreads;
+  int threadID;
+  threadID = get_local_id(0) % OP_WARPSIZE;
+  sharedPointer_save_soln = shared_save_soln + sharedMemoryOffset * (get_local_id(0) / OP_WARPSIZE);
+  for (i1 = get_global_id(0); i1 < setSize; i1 += get_global_size(0)) {
+    localOffset = i1 - threadID;
+    numberOfActiveThreads = MIN(OP_WARPSIZE,setSize - localOffset);
+    for (i2 = 0; i2 < 4; ++i2) {
+      ((float *)sharedPointer_save_soln)[threadID + i2 * numberOfActiveThreads] = opDat1[threadID + i2 * numberOfActiveThreads + localOffset * 4];
+    }
+    for (i2 = 0; i2 < 4; ++i2) {
+      opDat1Local[i2] = ((float *)sharedPointer_save_soln)[i2 + threadID * 4];
+    }
+    save_soln_modified(opDat1Local,opDat2Local);
+    for (i2 = 0; i2 < 4; ++i2) {
+      ((float *)sharedPointer_save_soln)[i2 + threadID * 4] = opDat2Local[i2];
+    }
+    for (i2 = 0; i2 < 4; ++i2) {
+      opDat2[threadID + i2 * numberOfActiveThreads + localOffset * 4] = ((float *)sharedPointer_save_soln)[threadID + i2 * numberOfActiveThreads];
+    }
+  }
+}
+
+void save_soln_host(const char *userSubroutine,op_set set,op_arg opDat1,op_arg opDat2)
+{
+#ifdef OP_BLOCK_SIZE_4
+  threadsPerBlockSize_save_soln = OP_BLOCK_SIZE_4;
+#endif
+  size_t blocksPerGrid;
+  size_t threadsPerBlock;
+  size_t totalThreadNumber;
+  size_t dynamicSharedMemorySize;
+  cl_int errorCode;
+  cl_event event;
+  cl_kernel kernelPointer;
+  int sharedMemoryOffset;
+  double cpu_t1;
+  double cpu_t2;
+  double wall_t1;
+op_timers(&cpu_t1, &wall_t1);
+  double wall_t2;
+  blocksPerGrid = 200;
+  threadsPerBlock = threadsPerBlockSize_save_soln;
+  totalThreadNumber = threadsPerBlock * blocksPerGrid;
+  dynamicSharedMemorySize = 0;
+  dynamicSharedMemorySize = MAX(dynamicSharedMemorySize,sizeof(float ) * 4);
+  dynamicSharedMemorySize = MAX(dynamicSharedMemorySize,sizeof(float ) * 4);
+  sharedMemoryOffset = dynamicSharedMemorySize * OP_WARPSIZE;
+  dynamicSharedMemorySize = dynamicSharedMemorySize * threadsPerBlock;
+  kernelPointer = getKernel("save_soln_kernel");
+  errorCode = clSetKernelArg(kernelPointer,0,sizeof(cl_mem ),&opDat1.data_d);
+  errorCode = errorCode | clSetKernelArg(kernelPointer,1,sizeof(cl_mem ),&opDat2.data_d);
+  errorCode = errorCode | clSetKernelArg(kernelPointer,2,sizeof(int ),&sharedMemoryOffset);
+  errorCode = errorCode | clSetKernelArg(kernelPointer,3,sizeof(int ),&set -> size);
+  errorCode = errorCode | clSetKernelArg(kernelPointer,4,dynamicSharedMemorySize,NULL);
+  assert_m(errorCode == CL_SUCCESS,"Error setting OpenCL kernel arguments");
+  errorCode = clEnqueueNDRangeKernel(cqCommandQueue,kernelPointer,1,NULL,&totalThreadNumber,&threadsPerBlock,0,NULL,&event);
+  assert_m(errorCode == CL_SUCCESS,"Error executing OpenCL kernel");
+  errorCode = clFinish(cqCommandQueue);
+  assert_m(errorCode == CL_SUCCESS,"Error completing device command queue");
+op_timers(&cpu_t2, &wall_t2);
+op_timing_realloc(4);
+  OP_kernels[4].name = userSubroutine;
+  OP_kernels[4].count = OP_kernels[4].count + 1;
+  OP_kernels[4].time = OP_kernels[4].time + (wall_t2 - wall_t1);
+  OP_kernels[4].transfer = OP_kernels[4].transfer + ((float )(set -> size)) * opDat1.size * 1.00000F;
+  OP_kernels[4].transfer = OP_kernels[4].transfer + ((float )(set -> size)) * opDat2.size * 1.00000F;
+}
+
 inline void update_modified(float *qold,float *q,float *res,__global float *adt,float *rms)
 {
   float del;
@@ -955,8 +986,8 @@ __kernel void update_kernel(__global float *opDat1,__global float *opDat2,__glob
 
 void update_host(const char *userSubroutine,op_set set,op_arg opDat1,op_arg opDat2,op_arg opDat3,op_arg opDat4,op_arg opDat5)
 {
-#ifdef OP_BLOCK_SIZE_4
-  threadsPerBlockSize_update = OP_BLOCK_SIZE_4;
+#ifdef OP_BLOCK_SIZE_5
+  threadsPerBlockSize_update = OP_BLOCK_SIZE_5;
 #endif
   size_t blocksPerGrid;
   size_t threadsPerBlock;
@@ -1023,12 +1054,12 @@ op_timers(&cpu_t1, &wall_t1);
     }
   }
 op_timers(&cpu_t2, &wall_t2);
-op_timing_realloc(4);
-  OP_kernels[4].name = userSubroutine;
-  OP_kernels[4].count = OP_kernels[4].count + 1;
-  OP_kernels[4].time = OP_kernels[4].time + (wall_t2 - wall_t1);
-  OP_kernels[4].transfer = OP_kernels[4].transfer + ((float )(set -> size)) * opDat1.size * 1.00000F;
-  OP_kernels[4].transfer = OP_kernels[4].transfer + ((float )(set -> size)) * opDat2.size * 1.00000F;
-  OP_kernels[4].transfer = OP_kernels[4].transfer + ((float )(set -> size)) * opDat3.size * 2.00000F;
-  OP_kernels[4].transfer = OP_kernels[4].transfer + ((float )(set -> size)) * opDat4.size * 1.00000F;
+op_timing_realloc(5);
+  OP_kernels[5].name = userSubroutine;
+  OP_kernels[5].count = OP_kernels[5].count + 1;
+  OP_kernels[5].time = OP_kernels[5].time + (wall_t2 - wall_t1);
+  OP_kernels[5].transfer = OP_kernels[5].transfer + ((float )(set -> size)) * opDat1.size * 1.00000F;
+  OP_kernels[5].transfer = OP_kernels[5].transfer + ((float )(set -> size)) * opDat2.size * 1.00000F;
+  OP_kernels[5].transfer = OP_kernels[5].transfer + ((float )(set -> size)) * opDat3.size * 2.00000F;
+  OP_kernels[5].transfer = OP_kernels[5].transfer + ((float )(set -> size)) * opDat4.size * 1.00000F;
 }

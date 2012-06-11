@@ -31,6 +31,7 @@
 //     Written by Mike Giles, 2010-2011, based on FORTRAN code
 //     by Devendra Ghate and Mike Giles, 2005
 //
+#include "real.h"
 //
 // standard headers
 //
@@ -41,7 +42,8 @@
 //
 // OP header file
 //
-#include "op_lib_cpp.h"
+//#include "op_lib_cpp.h"
+#include "OP2_OXFORD.h"
 //
 // Variables referenced in kernels with global scope
 //
@@ -50,15 +52,17 @@
 // The user-supplied kernels
 //
 #include "kernels.h"
+void adt_calc1_host(const char *userSubroutine,op_set set,op_arg opDat1,op_arg opDat2,op_arg opDat3,op_arg opDat4,op_arg opDat5,op_arg opDat6);
+void adt_calc2_host(const char *userSubroutine,op_set set,op_arg opDat1,op_arg opDat2,op_arg opDat3,op_arg opDat4,op_arg opDat5,op_arg opDat6);
 void bres_calc_host(const char *userSubroutine,op_set set,op_arg opDat1,op_arg opDat2,op_arg opDat3,op_arg opDat4,op_arg opDat5,op_arg opDat6);
 void bres_calc_host(const char *userSubroutine,op_set set,op_arg opDat1,op_arg opDat2,op_arg opDat3,op_arg opDat4,op_arg opDat5,op_arg opDat6);
-void fusedOne_host(const char *userSubroutine,op_set set,op_arg opDat1,op_arg opDat2,op_arg opDat3,op_arg opDat4,op_arg opDat5,op_arg opDat6,op_arg opDat7);
-void fusedTwo_host(const char *userSubroutine,op_set set,op_arg opDat1,op_arg opDat2,op_arg opDat3,op_arg opDat4,op_arg opDat5,op_arg opDat6,op_arg opDat7,op_arg opDat8,op_arg opDat9);
 void res_calc_host(const char *userSubroutine,op_set set,op_arg opDat1,op_arg opDat2,op_arg opDat3,op_arg opDat4,op_arg opDat5,op_arg opDat6,op_arg opDat7,op_arg opDat8);
 void res_calc_host(const char *userSubroutine,op_set set,op_arg opDat1,op_arg opDat2,op_arg opDat3,op_arg opDat4,op_arg opDat5,op_arg opDat6,op_arg opDat7,op_arg opDat8);
+void save_soln_host(const char *userSubroutine,op_set set,op_arg opDat1,op_arg opDat2);
+void update_host(const char *userSubroutine,op_set set,op_arg opDat1,op_arg opDat2,op_arg opDat3,op_arg opDat4,op_arg opDat5);
 void update_host(const char *userSubroutine,op_set set,op_arg opDat1,op_arg opDat2,op_arg opDat3,op_arg opDat4,op_arg opDat5);
 
-int main(int argc,char **argv)
+int main(int argc,char *argv[])
 {
   int *becell;
   int *ecell;
@@ -77,15 +81,20 @@ int main(int argc,char **argv)
   int nbedge;
   int niter;
   float rms;
+  if (argc != 2) {
+    printf("Usage: airfoil <grid>\n");
+    exit(1);
+  }
 // read in grid
   printf("reading in grid \n");
+  char *grid = argv[1];
   FILE *fp;
-  if ((fp = fopen("new_grid.dat","r")) == 0L) {
-    printf("can\'t open file new_grid.dat\n");
+  if ((fp = fopen(grid,"r")) == 0L) {
+    printf("can\'t open file %s\n",grid);
     exit((-1));
   }
   if (fscanf(fp,"%d %d %d %d \n",&nnode,&ncell,&nedge,&nbedge) != 4) {
-    printf("error reading from new_grid.dat\n");
+    printf("error reading from %s\n",grid);
     exit((-1));
   }
   cell = ((int *)(malloc(((4 * ncell) * (sizeof(int ))))));
@@ -175,20 +184,31 @@ int main(int argc,char **argv)
 // main time-marching loop
   niter = 1000;
   for (int iter = 1; iter <= niter; iter++) {
-//  save old flow solution
-    fusedOne_host("fusedOne_modified",cells,op_arg_dat(p_q,(-1), OP_ID,4,"float",OP_RW),op_arg_dat(p_qold,(-1), OP_ID,4,"float",OP_WRITE),op_arg_dat(p_x,0,pcell,2,"float",OP_READ),op_arg_dat(p_x,1,pcell,2,"float",OP_READ),op_arg_dat(p_x,2,pcell,2,"float",OP_READ),op_arg_dat(p_x,3,pcell,2,"float",OP_READ),op_arg_dat(p_adt,(-1), OP_ID,1,"float",OP_WRITE));
+// save old flow solution
+    save_soln_host("save_soln_modified",cells,op_arg_dat(p_q,(-1), *(&OP_ID),4,"float",OP_READ),op_arg_dat(p_qold,(-1), *(&OP_ID),4,"float",OP_WRITE));
+// predictor/corrector update double loop (previously a true loop, now unrolled for fusion purposes)
+// calculate area/timstep
+    adt_calc1_host("adt_calc1_modified",cells,op_arg_dat(p_x,0,pcell,2,"float",OP_READ),op_arg_dat(p_x,1,pcell,2,"float",OP_READ),op_arg_dat(p_x,2,pcell,2,"float",OP_READ),op_arg_dat(p_x,3,pcell,2,"float",OP_READ),op_arg_dat(p_q,(-1), *(&OP_ID),4,"float",OP_READ),op_arg_dat(p_adt,(-1), *(&OP_ID),1,"float",OP_WRITE));
+// calculate flux residual
     res_calc_host("res_calc_modified",edges,op_arg_dat(p_x,0,pedge,2,"float",OP_READ),op_arg_dat(p_x,1,pedge,2,"float",OP_READ),op_arg_dat(p_q,0,pecell,4,"float",OP_READ),op_arg_dat(p_q,1,pecell,4,"float",OP_READ),op_arg_dat(p_adt,0,pecell,1,"float",OP_READ),op_arg_dat(p_adt,1,pecell,1,"float",OP_READ),op_arg_dat(p_res,0,pecell,4,"float",OP_INC),op_arg_dat(p_res,1,pecell,4,"float",OP_INC));
-    bres_calc_host("bres_calc_modified",bedges,op_arg_dat(p_x,0,pbedge,2,"float",OP_READ),op_arg_dat(p_x,1,pbedge,2,"float",OP_READ),op_arg_dat(p_q,0,pbecell,4,"float",OP_READ),op_arg_dat(p_adt,0,pbecell,1,"float",OP_READ),op_arg_dat(p_res,0,pbecell,4,"float",OP_INC),op_arg_dat(p_bound,(-1), OP_ID,1,"int",OP_READ));
+    bres_calc_host("bres_calc_modified",bedges,op_arg_dat(p_x,0,pbedge,2,"float",OP_READ),op_arg_dat(p_x,1,pbedge,2,"float",OP_READ),op_arg_dat(p_q,0,pbecell,4,"float",OP_READ),op_arg_dat(p_adt,0,pbecell,1,"float",OP_READ),op_arg_dat(p_res,0,pbecell,4,"float",OP_INC),op_arg_dat(p_bound,(-1), *(&OP_ID),1,"int",OP_READ));
+// update flow field
     rms = 0.0;
-    fusedTwo_host("fusedTwo_modified",cells,op_arg_dat(p_qold,(-1), OP_ID,4,"float",OP_READ),op_arg_dat(p_q,(-1), OP_ID,4,"float",OP_WRITE),op_arg_dat(p_res,(-1), OP_ID,4,"float",OP_RW),op_arg_dat(p_adt,(-1), OP_ID,1,"float",OP_RW),op_arg_gbl(&rms,1,"float",OP_INC),op_arg_dat(p_x,0,pcell,2,"float",OP_READ),op_arg_dat(p_x,1,pcell,2,"float",OP_READ),op_arg_dat(p_x,2,pcell,2,"float",OP_READ),op_arg_dat(p_x,3,pcell,2,"float",OP_READ));
+    update_host("update_modified",cells,op_arg_dat(p_qold,(-1), *(&OP_ID),4,"float",OP_READ),op_arg_dat(p_q,(-1), *(&OP_ID),4,"float",OP_WRITE),op_arg_dat(p_res,(-1), *(&OP_ID),4,"float",OP_RW),op_arg_dat(p_adt,(-1), *(&OP_ID),1,"float",OP_READ),op_arg_gbl(&rms,1,"float",OP_INC));
+    adt_calc2_host("adt_calc2_modified",cells,op_arg_dat(p_x,0,pcell,2,"float",OP_READ),op_arg_dat(p_x,1,pcell,2,"float",OP_READ),op_arg_dat(p_x,2,pcell,2,"float",OP_READ),op_arg_dat(p_x,3,pcell,2,"float",OP_READ),op_arg_dat(p_q,(-1), *(&OP_ID),4,"float",OP_READ),op_arg_dat(p_adt,(-1), *(&OP_ID),1,"float",OP_WRITE));
+// calculate flux residual
     res_calc_host("res_calc_modified",edges,op_arg_dat(p_x,0,pedge,2,"float",OP_READ),op_arg_dat(p_x,1,pedge,2,"float",OP_READ),op_arg_dat(p_q,0,pecell,4,"float",OP_READ),op_arg_dat(p_q,1,pecell,4,"float",OP_READ),op_arg_dat(p_adt,0,pecell,1,"float",OP_READ),op_arg_dat(p_adt,1,pecell,1,"float",OP_READ),op_arg_dat(p_res,0,pecell,4,"float",OP_INC),op_arg_dat(p_res,1,pecell,4,"float",OP_INC));
-    bres_calc_host("bres_calc_modified",bedges,op_arg_dat(p_x,0,pbedge,2,"float",OP_READ),op_arg_dat(p_x,1,pbedge,2,"float",OP_READ),op_arg_dat(p_q,0,pbecell,4,"float",OP_READ),op_arg_dat(p_adt,0,pbecell,1,"float",OP_READ),op_arg_dat(p_res,0,pbecell,4,"float",OP_INC),op_arg_dat(p_bound,(-1), OP_ID,1,"int",OP_READ));
+    bres_calc_host("bres_calc_modified",bedges,op_arg_dat(p_x,0,pbedge,2,"float",OP_READ),op_arg_dat(p_x,1,pbedge,2,"float",OP_READ),op_arg_dat(p_q,0,pbecell,4,"float",OP_READ),op_arg_dat(p_adt,0,pbecell,1,"float",OP_READ),op_arg_dat(p_res,0,pbecell,4,"float",OP_INC),op_arg_dat(p_bound,(-1), *(&OP_ID),1,"int",OP_READ));
+// update flow field
     rms = 0.0;
-    update_host("update_modified",cells,op_arg_dat(p_qold,(-1), OP_ID,4,"float",OP_READ),op_arg_dat(p_q,(-1), OP_ID,4,"float",OP_WRITE),op_arg_dat(p_res,(-1), OP_ID,4,"float",OP_RW),op_arg_dat(p_adt,(-1), OP_ID,1,"float",OP_READ),op_arg_gbl(&rms,1,"float",OP_INC));
+    update_host("update_modified",cells,op_arg_dat(p_qold,(-1), *(&OP_ID),4,"float",OP_READ),op_arg_dat(p_q,(-1), *(&OP_ID),4,"float",OP_WRITE),op_arg_dat(p_res,(-1), *(&OP_ID),4,"float",OP_RW),op_arg_dat(p_adt,(-1), *(&OP_ID),1,"float",OP_READ),op_arg_gbl(&rms,1,"float",OP_INC));
 //  print iteration history
     rms = (sqrt((rms / ((float )ncell))));
-    printf(" %d  %10.5e \n",iter,rms);
+    if ((iter % 100) == 0) 
+      printf(" %d  %10.5e \n",iter,rms);
   }
+//  for ( int ll = 0; ll < 4*ncell; ll++ )
+//    printf ( "%lf\n", q[ll] );
   op_timing_output();
   return 0;
 }
