@@ -351,6 +351,62 @@ CPPOpenCLHostSubroutine::addTimingFinalDeclaration (
   } 
 }
 
+void
+CPPOpenCLHostSubruotine::addTimingFullDeclaration (
+    SgScopeStatement * scope)
+{
+  using namespace SageBuilder;
+  using namespace SageInterface;
+  using std::string;
+
+  string const tQueueName = "tQueue";
+
+  SgVariableDeclaration * tQueue = 
+      RoseStatementsAndExpressionsBuilder::appendVariableDeclaration (
+         tQueueName, buildUnsignedLongType (), scope);
+  
+  variableDeclarations->add (tQueueName, tQueue);
+
+  string const tSubmitName = "tSubmit";
+
+  SgVariableDeclaration * tSubmit = 
+      RoseStatementsAndExpressionsBuilder::appendVariableDeclaration (
+          tSubmitName, buildUnsignedLongType (), scope);
+  
+  variableDeclarations->add (tSubmitName, tSubmit);
+
+  string const tStartName = "tStart";
+ 
+  SgVariableDeclaration * tStart = 
+      RoseStatementsAndExpressiosnBuilder::appendVariableDeclaration (
+          tStartName, buildUnsignedLongType (), scope);
+
+  variableDeclarations->add (tStartName, tStart);
+
+  string const tEndName = "tEnd";
+   
+  SgVariableDelcaration * tEnd = 
+      RoseStatementsAndExpressionsBuilder::appendVariableDeclaration (
+          tEndName, buildUnsignedLongType (), scope);
+
+  variableDeclarations->add (tEndName, tEnd);
+
+  string const tElapsedName = "tElapsed";
+
+  SgVariableDeclaration * tElapsed = 
+      RoseStatementsAndExpressionsBuilder::appendVariableDeclaration (
+        tElapsedName, buildUnsignedLongType (), scope);
+
+  variableDeclarations->add (tElapsedName, tElapsed);  
+
+  addTextForUnparser (tQueue, "\n#ifdef PROFILE\n", 
+      AstUnparseAttribute::e_before); 
+
+  //INCOMPLETE DUE TO THE FACT THAT THE NECESSARY STUFF DOES NOT EXIST 
+  //IN OP_KERNELS
+  
+}
+
 void 
 CPPOpenCLHostSubroutine::addAllocateConstants (
     SgScopeStatement * scope)
